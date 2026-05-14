@@ -477,18 +477,55 @@ window.addEventListener('load', function() {
   db = firebase.database();
   dbRef = db.ref('estado');
   showSyncStatus('⟳ Conectando…', '#F5A623');
+
+  let firstLoad = true;
+
   dbRef.on('value', (snapshot) => {
-  state = snapshot.val() || {};
-  render();
-  renderVisits();
-  updateGlobalProgress();
-  showSyncStatus('🟢 Sincronizado', '#00C9A7');
-}, (error) => {
-  showSyncStatus('🔴 Sin conexión', '#E74C3C');
-  render();
-  renderVisits();
-  updateGlobalProgress();
-});
+    const newState = snapshot.val() || {};
+    if (firstLoad) {
+      // First load: full render to build the DOM
+      state = newState;
+      render();
+      renderVisits();
+      updateGlobalProgress();
+      firstLoad = false;
+    } else {
+      // Subsequent updates: only patch changed items without rebuilding DOM
+      for (const id in newState) {
+        const prev = state[id] || {status:'pendiente', fecha:''};
+        const next = newState[id] || {status:'pendiente', fecha:''};
+        // Update status button if changed
+        if (prev.status !== next.status) {
+          const btn = document.getElementById('btn_' + id);
+          if (btn) {
+            const isEnt = next.status === 'entregado';
+            btn.textContent = isEnt ? '✅ Entregado' : '⏳ Pendiente';
+            btn.className = 'status-btn status-' + (isEnt ? 'entregado' : 'pendiente');
+          }
+        }
+        // Update date input if changed
+        if (prev.fecha !== next.fecha) {
+          const row = document.getElementById('row_' + id);
+          if (row) {
+            const input = row.querySelector('.fecha-input');
+            if (input && input !== document.activeElement) {
+              input.value = next.fecha || '';
+            }
+          }
+        }
+      }
+      state = newState;
+      updateGlobalProgress();
+      // Update all org progress bars
+      for (let i = 1; i <= 5; i++) updateOrgProgress(i);
+    }
+    showSyncStatus('🟢 Sincronizado', '#00C9A7');
+  }, (error) => {
+    showSyncStatus('🔴 Sin conexión', '#E74C3C');
+    render();
+    renderVisits();
+    updateGlobalProgress();
+  });
 }); // end window.load
 </script>
 </body>
