@@ -107,6 +107,24 @@ h1 em{color:var(--accent);font-style:normal}
 .aliado-header{cursor:pointer;user-select:none}
 .aliado-chevron{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;transition:transform .2s;flex-shrink:0;margin-left:6px}
 .aliado-group.open .aliado-chevron{transform:rotate(180deg);background:rgba(0,201,167,.1)}
+/* Cantidad input */
+.cant-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:90px}
+.cant-label{font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.07em}
+.cant-input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;font-size:12px;padding:4px 8px;border-radius:8px;outline:none;width:90px;transition:border-color .2s;text-align:center}
+.cant-input:focus{border-color:var(--amber)}
+/* Historial entregas parciales */
+.historial{margin-top:8px;border-top:1px solid rgba(255,255,255,.05);padding-top:8px}
+.hist-title{font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.hist-list{display:flex;flex-direction:column;gap:4px}
+.hist-item{display:flex;align-items:center;gap:10px;font-size:11px;background:rgba(0,201,167,.06);border:1px solid rgba(0,201,167,.15);border-radius:8px;padding:5px 10px}
+.hist-fecha{color:var(--accent);font-weight:500;white-space:nowrap}
+.hist-cant{color:rgba(255,255,255,.7)}
+.hist-del{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.25);cursor:pointer;font-size:13px;padding:0 2px;transition:color .2s}
+.hist-del:hover{color:#E74C3C}
+/* Download button */
+.download-bar{position:fixed;bottom:24px;right:24px;z-index:100}
+.download-btn{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--accent),#00a88f);color:var(--navy);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:14px 22px;border-radius:100px;border:none;cursor:pointer;box-shadow:0 8px 32px rgba(0,201,167,.35);transition:transform .2s,box-shadow .2s}
+.download-btn:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,201,167,.5)}
 .item-qty{font-size:11px;color:rgba(255,255,255,.4)}
 
 /* FECHA INPUT */
@@ -194,6 +212,13 @@ footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:cent
 <div class="visits-grid" id="visits-grid"></div>
 
 <footer>Fuente: Planes de Compra Caquetá 2026 · Estado guardado automáticamente en el navegador</footer>
+</div>
+
+<div class="download-bar">
+  <button class="download-btn" onclick="descargarResumen()">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Descargar Resumen
+  </button>
 </div>
 
 <script>
@@ -337,6 +362,200 @@ function updateOrgProgress(orgNum) {
   if(miniText) miniText.textContent = `${ent}/${items.length} · ${pct}%`;
 }
 
+function registrarParcial(id, und) {
+  const fechaInput = document.getElementById('fechainput_' + id);
+  const cantInput  = document.getElementById('cantinput_' + id);
+  const fecha = fechaInput ? fechaInput.value : '';
+  const cant  = cantInput  ? cantInput.value  : '';
+  if (!fecha || !cant || parseFloat(cant) <= 0) {
+    alert('Por favor ingresa la fecha y la cantidad antes de registrar.');
+    return;
+  }
+  if (!state[id]) state[id] = {status:'pendiente', fecha:'', historial:[]};
+  if (!state[id].historial) state[id].historial = [];
+  state[id].historial.push({ fecha, cant });
+  state[id].fecha = fecha;
+  if (dbRef) dbRef.child(id).set(state[id]);
+  // Clear inputs
+  if (cantInput) cantInput.value = '';
+  // Re-render just this row
+  reRenderRow(id, und);
+  updateGlobalProgress();
+}
+
+function eliminarHistorial(id, idx) {
+  if (!state[id] || !state[id].historial) return;
+  state[id].historial.splice(idx, 1);
+  if (dbRef) dbRef.child(id).set(state[id]);
+  const item = findItem(id);
+  reRenderRow(id, item ? item.und : '');
+}
+
+function findItem(id) {
+  for (const orgId in ALL_DATA) {
+    const found = ALL_DATA[orgId].find(i => i.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function reRenderRow(id, und) {
+  const s = getItemState(id);
+  const item = findItem(id);
+  if (!item) return;
+  const row = document.getElementById('row_' + id);
+  if (!row) return;
+  const historial = s.historial || [];
+  const histHtml = historial.length > 0 ? `
+    <div class="historial">
+      <div class="hist-title">📦 Entregas parciales registradas</div>
+      <div class="hist-list">
+        ${historial.map((h,i)=>`
+          <div class="hist-item">
+            <span class="hist-fecha">📅 ${h.fecha}</span>
+            <span class="hist-cant">Cantidad: <strong>${h.cant} ${item.und}</strong></span>
+            <button class="hist-del" onclick="eliminarHistorial('${id}',${i})" title="Eliminar">✕</button>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
+  const isEnt = s.status === 'entregado';
+  const normCat = normalizecat(item.cat);
+  row.innerHTML = `
+    <div class="item-left">
+      <div class="item-desc">${item.desc}</div>
+      <div class="item-meta">
+        <span class="cat-badge ${catClass(item.cat)}">${normCat}</span>
+        <span class="item-qty">${item.cant} ${item.und}</span>
+      </div>
+      ${histHtml}
+    </div>
+    <div class="cant-wrap">
+      <span class="cant-label">Cant. entregada</span>
+      <input class="cant-input" type="number" min="0" placeholder="0"
+        id="cantinput_${id}" value="">
+    </div>
+    <div class="fecha-wrap">
+      <span class="fecha-label">Fecha real entrega</span>
+      <input class="fecha-input" type="date" value="${s.fecha||''}"
+        id="fechainput_${id}"
+        onchange="onFechaChange('${id}',this.value)">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:110px">
+      <button class="status-btn" style="background:rgba(0,201,167,.15);border:1px solid rgba(0,201,167,.3);color:var(--accent);font-size:10px;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;white-space:nowrap"
+        onclick="registrarParcial('${id}','${item.und}')">
+        ➕ Registrar entrega
+      </button>
+      <button class="status-btn status-${isEnt?'entregado':'pendiente'}"
+        id="btn_${id}" onclick="toggleStatus('${id}')">
+        ${isEnt?'✅ Entregado':'⏳ Pendiente'}
+      </button>
+    </div>`;
+}
+
+function descargarResumen() {
+  const now = new Date();
+  const fechaHoy = now.toLocaleDateString('es-CO', {day:'2-digit',month:'long',year:'numeric'});
+  let total=0, ent=0, pend=0;
+
+  let html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Resumen Cronograma Caquetá</title>
+  <style>
+    body{font-family:Arial,sans-serif;color:#1A2B3C;padding:30px;max-width:900px;margin:0 auto}
+    h1{color:#0B1F3A;border-bottom:3px solid #00C9A7;padding-bottom:10px;font-size:22px}
+    h2{color:#1A4F82;font-size:16px;margin-top:24px;margin-bottom:8px;border-left:4px solid #00C9A7;padding-left:10px}
+    h3{font-size:13px;color:#2E86C1;margin:12px 0 6px;font-weight:600}
+    .meta{font-size:12px;color:#5A7A99;margin-bottom:20px}
+    .kpis{display:flex;gap:16px;margin:16px 0;flex-wrap:wrap}
+    .kpi{background:#F0F6FF;border:1px solid #D6E8F7;border-radius:10px;padding:12px 18px;text-align:center;min-width:120px}
+    .kpi-num{font-size:28px;font-weight:800;color:#00C9A7}
+    .kpi-label{font-size:11px;color:#5A7A99;text-transform:uppercase;letter-spacing:.06em}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}
+    th{background:#1A3C6E;color:#fff;padding:7px 10px;text-align:left;font-size:11px}
+    td{padding:6px 10px;border-bottom:1px solid #E8F0FB;vertical-align:top}
+    tr:nth-child(even){background:#F8FAFC}
+    .tag-ent{background:#DCFCE7;color:#15803D;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:600;white-space:nowrap}
+    .tag-pen{background:#FEE2E2;color:#B91C1C;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:600;white-space:nowrap}
+    .hist-cell{font-size:11px;color:#1A4F82}
+    .prog-bar{height:8px;background:#E8F0FB;border-radius:100px;overflow:hidden;margin-top:4px}
+    .prog-fill{height:100%;background:#00C9A7;border-radius:100px}
+    .section-org{background:#EFF6FF;border:1px solid #D6E8F7;border-radius:10px;padding:14px;margin-bottom:16px}
+    footer{margin-top:30px;font-size:11px;color:#94A3B8;border-top:1px solid #E8F0FB;padding-top:14px;text-align:center}
+  </style></head><body>
+  <h1>📋 Resumen General de Entregas — Caquetá 2026</h1>
+  <div class="meta">Generado el ${fechaHoy} · Fuente: Cronograma Caquetá v2</div>`;
+
+  // Build org sections
+  let orgRows = '';
+  ORGS.forEach(org => {
+    const items = ALL_DATA[org.num] || [];
+    const orgEnt = items.filter(i=>getItemState(i.id).status==='entregado').length;
+    const orgPct = items.length>0 ? Math.round(orgEnt/items.length*100) : 0;
+    total += items.length; ent += orgEnt; pend += (items.length - orgEnt);
+
+    // Group by provider
+    const byProv = {};
+    items.forEach(item=>{
+      const p = item.prov||'Sin proveedor';
+      if(!byProv[p]) byProv[p]=[];
+      byProv[p].push(item);
+    });
+
+    let provTables = '';
+    for(const [prov, provItems] of Object.entries(byProv)){
+      const rows = provItems.map(item=>{
+        const s = getItemState(item.id);
+        const isEnt = s.status==='entregado';
+        const hist = s.historial||[];
+        const histTxt = hist.length>0
+          ? hist.map(h=>`${h.fecha}: ${h.cant} ${item.und}`).join('<br>')
+          : '<span style="color:#94A3B8">—</span>';
+        return `<tr>
+          <td>${item.desc}</td>
+          <td style="text-align:center">${item.cant} ${item.und}</td>
+          <td style="text-align:center"><span class="${isEnt?'tag-ent':'tag-pen'}">${isEnt?'✅ Entregado':'⏳ Pendiente'}</span></td>
+          <td>${s.fecha||'<span style="color:#94A3B8">—</span>'}</td>
+          <td class="hist-cell">${histTxt}</td>
+        </tr>`;
+      }).join('');
+      provTables += `<h3>🏪 ${prov}</h3>
+        <table><thead><tr><th>Ítem</th><th>Cant. total</th><th>Estado</th><th>Fecha entrega</th><th>Entregas parciales</th></tr></thead>
+        <tbody>${rows}</tbody></table>`;
+    }
+
+    orgRows += `<div class="section-org">
+      <h2>Org. ${org.num} — ${org.org}</h2>
+      <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#5A7A99;margin-bottom:10px">
+        <span>📅 2ª visita: <strong>${org.visita}</strong></span>
+        <span>${orgEnt}/${items.length} entregados · ${orgPct}%</span>
+        <div class="prog-bar" style="flex:1"><div class="prog-fill" style="width:${orgPct}%"></div></div>
+      </div>
+      ${provTables}
+    </div>`;
+  });
+
+  const pct = total>0 ? Math.round(ent/total*100) : 0;
+  html += `<div class="kpis">
+    <div class="kpi"><div class="kpi-num">${total}</div><div class="kpi-label">Total ítems</div></div>
+    <div class="kpi"><div class="kpi-num" style="color:#27AE60">${ent}</div><div class="kpi-label">Entregados</div></div>
+    <div class="kpi"><div class="kpi-num" style="color:#E74C3C">${pend}</div><div class="kpi-label">Pendientes</div></div>
+    <div class="kpi"><div class="kpi-num">${pct}%</div><div class="kpi-label">Avance</div></div>
+  </div>
+  <div class="prog-bar" style="margin-bottom:24px"><div class="prog-fill" style="width:${pct}%"></div></div>
+  ${orgRows}
+  <footer>Cronograma de Entregas Caquetá 2026 · Generado automáticamente desde el sistema de seguimiento</footer>
+  </body></html>`;
+
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Resumen_Entregas_Caqueta_${now.toISOString().slice(0,10)}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+
 function toggleAliado(id) {
   const el = document.getElementById(id);
   if(el) el.classList.toggle('open');
@@ -377,6 +596,19 @@ function render() {
         const s = getItemState(item.id);
         const isEnt = s.status==='entregado';
         const normCat = normalizecat(item.cat);
+        const historial = s.historial || [];
+        const histHtml = historial.length > 0 ? `
+          <div class="historial">
+            <div class="hist-title">📦 Entregas parciales registradas</div>
+            <div class="hist-list">
+              ${historial.map((h,i)=>`
+                <div class="hist-item">
+                  <span class="hist-fecha">📅 ${h.fecha}</span>
+                  <span class="hist-cant">Cantidad: <strong>${h.cant} ${item.und}</strong></span>
+                  <button class="hist-del" onclick="eliminarHistorial('${item.id}',${i})" title="Eliminar">✕</button>
+                </div>`).join('')}
+            </div>
+          </div>` : '';
         return `<div class="item-row" id="row_${item.id}">
           <div class="item-left">
             <div class="item-desc">${item.desc}</div>
@@ -384,16 +616,29 @@ function render() {
               <span class="cat-badge ${catClass(item.cat)}">${normCat}</span>
               <span class="item-qty">${item.cant} ${item.und}</span>
             </div>
+            ${histHtml}
+          </div>
+          <div class="cant-wrap">
+            <span class="cant-label">Cant. entregada</span>
+            <input class="cant-input" type="number" min="0" placeholder="0"
+              id="cantinput_${item.id}" value="">
           </div>
           <div class="fecha-wrap">
             <span class="fecha-label">Fecha real entrega</span>
             <input class="fecha-input" type="date" value="${s.fecha||''}"
+              id="fechainput_${item.id}"
               onchange="onFechaChange('${item.id}',this.value)">
           </div>
-          <button class="status-btn status-${isEnt?'entregado':'pendiente'}"
-            id="btn_${item.id}" onclick="toggleStatus('${item.id}')">
-            ${isEnt?'✅ Entregado':'⏳ Pendiente'}
-          </button>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:110px">
+            <button class="status-btn" style="background:rgba(0,201,167,.15);border:1px solid rgba(0,201,167,.3);color:var(--accent);font-size:10px;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;white-space:nowrap"
+              onclick="registrarParcial('${item.id}','${item.und}')">
+              ➕ Registrar entrega
+            </button>
+            <button class="status-btn status-${isEnt?'entregado':'pendiente'}"
+              id="btn_${item.id}" onclick="toggleStatus('${item.id}')">
+              ${isEnt?'✅ Entregado':'⏳ Pendiente'}
+            </button>
+          </div>
         </div>`;
       }).join('');
 
