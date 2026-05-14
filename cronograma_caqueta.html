@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cronograma de Entregas — Caquetá 2026</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -149,7 +151,7 @@ footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:cent
 <div class="wrap">
 
 <header>
-  <div class="badge"><span></span> Caquetá · 2026</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px"><div class="badge"><span></span> Caquetá · 2026</div><span id="sync-status" style="font-size:12px;font-weight:500">⟳ Conectando…</span></div>
   <h1>Cronograma de<br><em>Entregas</em></h1>
   <p class="subtitle">Seguimiento de órdenes de compra por organización y aliado comercial.</p>
 </header>
@@ -197,6 +199,18 @@ footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:cent
 <script>
 const ALL_DATA = {"1": [{"id": "org1_0", "cat": "Materiales de construcción", "desc": "CEMENTO CEMEX GRIS X 50 KILOS", "und": "Und", "cant": "44", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_1", "cat": "Materiales de construcción", "desc": "BLOQUE CAQUETA", "und": "Und", "cant": "490", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_2", "cat": "Materiales de construcción", "desc": "MALLA ELECTROSOLDADA 4 MM (2.36 MT X 6 MT)", "und": "Und", "cant": "2", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_3", "cat": "Materiales de construcción", "desc": "FLEJE 8X8", "und": "Und", "cant": "10", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_4", "cat": "Materiales de construcción", "desc": "ALAMBRE NEGRO X KILO", "und": "Kg", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_5", "cat": "Materiales de construcción", "desc": "TUBO SANITARIO LIVIANO X 6 COLTUBAC", "und": "Und", "cant": "9", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_6", "cat": "Materiales de construcción", "desc": "TUBO RECTANGULAR 8X4 CAL 18 FAJOBE", "und": "Und", "cant": "19", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_7", "cat": "Maquinaria", "desc": "FUMIGADORA STIHL SR440 CON MOTOR DE CAÑÓN", "und": "Und", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_8", "cat": "Mano de Obra", "desc": "SERVICIO DE CONSTRUCCIÓN MAESTRO DE OBRA Y AYUDANTES", "und": "Glb", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_9", "cat": "Maquinaria", "desc": "TRITURADORA CHIPEADORA DE RAMAS TCT-1500 MOTOR GASOLINA 14 HP", "und": "Und", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_10", "cat": "Materiales de construcción", "desc": "TEJA DE ZINC CAL 34 DE 3.66 MT", "und": "Und", "cant": "30", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_11", "cat": "Materiales de construcción", "desc": "VARILLA CORRUGADA 3/8\" (3.37 KL #3)", "und": "Und", "cant": "20", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}], "2": [{"id": "org2_0", "cat": "Maquinaria", "desc": "Minitractor motocultor Forte diésel 11 HP (arranque eléctrico)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_1", "cat": "Maquinaria", "desc": "Fumigadora con motor Royal Condor “La Poderosa” TU26", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_2", "cat": "Maquinaria", "desc": "Electrobomba Barnes HE 1.5 30-1 (1E0559)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_3", "cat": "Maquinaria", "desc": "Estación Honda GX160 + cabezote ES22 + 200 m manguera café + lanzas", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_4", "cat": "Materiales de construcción", "desc": "Manguera succión corrugada 1½\" × 6 m (Guio)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_5", "cat": "Materiales de construcción", "desc": "Válvula de pie 1½\" PVC (LD-810)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_6", "cat": "Materiales de construcción", "desc": "Tee galvanizada 1½\"", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_7", "cat": "Materiales de construcción", "desc": "Niple galvanizado 1½\" × 5 cm", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_8", "cat": "Materiales de construcción", "desc": "Tapón galvanizado 1½\" (macho)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_9", "cat": "Materiales de construcción", "desc": "Acople aluminio espigo 1½\"", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_10", "cat": "Materiales de construcción", "desc": "Abrazadera industrial 1½\" (T-506)", "und": "UND", "cant": "2", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_11", "cat": "Materiales de construcción", "desc": "Cinta aislante negra 3M × 10 m", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_12", "cat": "Insumos", "desc": "Sulfato de cobre", "und": "KG", "cant": "5", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_13", "cat": "Insumos", "desc": "Sulfato de potasio x 25 kg", "und": "BULTO", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_14", "cat": "Insumos", "desc": "Sulfato de magnesio x 25 kg", "und": "BULTO", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_15", "cat": "Insumos", "desc": "Sulfato de manganeso", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_16", "cat": "Insumos", "desc": "Sulfato de zinc", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_17", "cat": "Insumos", "desc": "Sulfato calcero", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_18", "cat": "Insumos", "desc": "Molibdato de sodio", "und": "LB", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_19", "cat": "Insumos", "desc": "Cloruro de cobalto x 150 g", "und": "UNIDAD", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_20", "cat": "Insumos", "desc": "Bórax", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_21", "cat": "Materiales de construcción", "desc": "Ladrillo # 4", "und": "Unidad", "cant": "643", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org2_22", "cat": "Materiales de construcción", "desc": "Tubo rectangular 8×4 cal 20 Fajobe", "und": "Unidad", "cant": "10", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org2_23", "cat": "Materiales de construcción", "desc": "Teja de zinc cal 33 x 3 m", "und": "Unidad", "cant": "30", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}], "3": [{"id": "org3_0", "cat": "Insumos", "desc": "biodigestor 5000 litros", "und": "Unidad", "cant": "1", "prov": "JAIRO LEON CHAVES CADEN"}, {"id": "org3_1", "cat": "Maquinaria", "desc": "minicultivador", "und": "Unidad", "cant": "1", "prov": "JAIRO LEON CHAVES CADEN"}, {"id": "org3_2", "cat": "Maquinaria", "desc": "remolque", "und": "Unidad", "cant": "1", "prov": "JAIRO LEON CHAVES CADEN"}, {"id": "org3_3", "cat": "Insumos", "desc": "Miel * 30 Kg", "und": "Unidad", "cant": "4", "prov": "JAIRO LEON CHAVES CADEN"}], "4": [{"id": "org4_0", "cat": "Mano de Obra", "desc": "Elaboración a todo costo de 200 metros cuadrados de estructura metálica que consta de 35 metros de torre de 15 x 15 en ángulo de 1'', 625 metros de cercha de carga en tubo estructural cal 18 de 10x4, 170 metros de correa en tubo cal 18 de 10x4, 221 metros de suministro e instalación en lámina master mil cal 28 instalado, 34 metros de canal cal 18 en lámina galvanizada, 168 metros de malla eslabonada cal 14 x 2 ½, 24 postes metálicos de 2'' cal 14 x 3 metros, 2 portones en malla eslabonada para el ingreso y 82 metros cuadrados de malla eslabonada para la parte de afuera.", "und": "Contrato", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_1", "cat": "Mano de Obra", "desc": "Elaboración a todo costo de 200 metros cuadrados de piso, que incluye la adecuación del área existente mediante picado y/o demolición. el proyecto contempla la construcción de una habitación de 4x4 metros en mampostería confinada, con columnas de 20x10, viga de cimentación de 20x20 y viga aérea de 10x20 (incluye acero de refuerzo longitudinal y transversal); dicha estructura será pañetada, estucada y pintada, al igual que la construcción preexistente. asimismo, se realizará el pañete, estuco y pintura de la zona actual, la instalación de una pared falsa en estructura metálica con acabado en pvc y la construcción de un muro de 3 metros en ladrillo acostado. además, se incluye la adecuación de un baño existente (pañete, estuco y pintura interior), la habilitación de puntos eléctricos para las habitaciones y la instalación de tres puertas correderas en pvc.", "und": "Contrato", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_2", "cat": "Insumos", "desc": "Sulfato de cobre", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_3", "cat": "Insumos", "desc": "Sulfato de magnesio.", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_4", "cat": "Insumos", "desc": "Sulfato de Zinc.", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_5", "cat": "Insumos", "desc": "Leonardita", "und": "kg", "cant": "250", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_6", "cat": "Insumos", "desc": "Sulfato de Manganeso.", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_7", "cat": "Insumos", "desc": "Hidroxido de potasio", "und": "kg", "cant": "100", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_8", "cat": "Insumos", "desc": "sulfato de potasio.", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_9", "cat": "Insumos", "desc": "Ácido bórico.", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_10", "cat": "Insumos", "desc": "Azufre", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_11", "cat": "Insumos", "desc": "Cal Dolomita X 50 KG", "und": "bulto", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_12", "cat": "Insumos", "desc": "ROCA FOSFORICA X 50 KG", "und": "bulto", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_13", "cat": "Insumos", "desc": "Melaza en presentacion de 30 kg", "und": "Bolsa", "cant": "10", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_14", "cat": "Insumos", "desc": "Careta o tapaboca FUMIGACION", "und": "unidad", "cant": "2", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_15", "cat": "Insumos", "desc": "Guantes", "und": "Caja", "cant": "5", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_16", "cat": "Insumos", "desc": "Gafas MASCARA DE RESPIRACION", "und": "Unidad", "cant": "10", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_17", "cat": "Insumos", "desc": "Carbonato de fosforo", "und": "kg", "cant": "49", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_18", "cat": "Insumos", "desc": "sulfato de calcio", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_19", "cat": "Insumos", "desc": "Boro", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_20", "cat": "Insumos", "desc": "Cal Viva x 50 kg", "und": "Bulto", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_21", "cat": "Insumos", "desc": "Reactivos para medidor multiparametro de alto rango", "und": "paquete", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_22", "cat": "Insumos", "desc": "SELLADORA DE EMPAQUES MANUAL 110V EN ACERO INOXIDABLE", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_23", "cat": "Insumos", "desc": "PELETIZADORA PARA COMPOST", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_24", "cat": "Insumos", "desc": "Microscopio", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_25", "cat": "Insumos", "desc": "MEDIDOR FOTOM MULTIPARAMETROS Y PHMETRO NUTRIENT", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_26", "cat": "Insumos", "desc": "Canecas plásticas de 200 litros", "und": "Unidades", "cant": "10", "prov": "AGROVET DE LA AMAZONIA SAS"}], "5": [{"id": "org5_0", "cat": "Insumos", "desc": "Cemento Cemex o Argos", "und": "unidad", "cant": "770", "prov": "TECNICERCAS SAS"}, {"id": "org5_1", "cat": "Insumos", "desc": "Varilla corrugada 1/2\"", "und": "unidad", "cant": "250", "prov": "TECNICERCAS SAS"}, {"id": "org5_2", "cat": "Insumos", "desc": "Teja de zinc arquitectonica 3.6 m calibre 30", "und": "unidad", "cant": "205", "prov": "TECNICERCAS SAS"}, {"id": "org5_3", "cat": "Insumos", "desc": "Ladrillo recocido N°4", "und": "unidad", "cant": "3000", "prov": "TECNICERCAS SAS"}, {"id": "org5_4", "cat": "Insumos", "desc": "Polisombra al 60% 50x4", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_5", "cat": "Insumos", "desc": "Gravilla volqueteada 6 metros cubicos", "und": "volqueta", "cant": "25", "prov": "TECNICERCAS SAS"}, {"id": "org5_6", "cat": "Insumos", "desc": "Arena volqueteada 6 metros cubicos", "und": "volqueta", "cant": "23", "prov": "TECNICERCAS SAS"}, {"id": "org5_7", "cat": "Insumos", "desc": "Canaleta y accesorios plástica x 3 m de 4\"", "und": "unidad", "cant": "40", "prov": "TECNICERCAS SAS"}, {"id": "org5_8", "cat": "Insumos", "desc": "Bajantes de canaletas x 3 m de 4\"", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_9", "cat": "Insumos", "desc": "Tanque reservorio Polinter 2000 L alto", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_10", "cat": "Insumos", "desc": "Tanque reservorio Polinter 5000 L alto", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_11", "cat": "Insumos", "desc": "Martillo calibre 19", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_12", "cat": "Insumos", "desc": "Llana plástica 10 x 23 cm", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_13", "cat": "Insumos", "desc": "Llanas metálicas 10 x 23 cm", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_14", "cat": "Insumos", "desc": "Alambre dulce", "und": "kilo", "cant": "25", "prov": "TECNICERCAS SAS"}, {"id": "org5_15", "cat": "Insumos", "desc": "Balde de construcción 17 x 30 cm", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_16", "cat": "Insumos", "desc": "Grapadora industrial Dewalt", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_17", "cat": "Insumos", "desc": "Flejes caja x 20 unidades 3/8 20x20", "und": "unidad", "cant": "17", "prov": "TECNICERCAS SAS"}, {"id": "org5_18", "cat": "Insumos", "desc": "Malla electrosoldada 6m 4mm 15x15", "und": "unidad", "cant": "43", "prov": "TECNICERCAS SAS"}, {"id": "org5_19", "cat": "Maquinaria", "desc": "Triturador picador motor gasolina 9 HP", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_20", "cat": "Insumos", "desc": "Bomba fumigadora motor 25 L MTR", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_21", "cat": "Maquinaria", "desc": "Balanza plataforma 1000 kg 80 x 80 cm", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_22", "cat": "Maquinaria", "desc": "Trituradora chipeadora acople 13 HP", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_23", "cat": "Maquinaria", "desc": "Electrobomba centrífuga 4 HP 11/2 x 11/4\" Trifiliar", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_24", "cat": "Maquinaria", "desc": "Tractor agrícola 50 HP 4x4", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_25", "cat": "Maquinaria", "desc": "Cargador frontal acoplado al tractor", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_26", "cat": "Maquinaria", "desc": "Tolva metálica acople tractor 3 t", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_27", "cat": "Maquinaria", "desc": "Máquina cosedora de costales Agrincol", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_28", "cat": "Maquinaria", "desc": "Hilaza para coser costales", "und": "unidad", "cant": "150", "prov": "TECNICERCAS SAS"}, {"id": "org5_29", "cat": "Maquinaria", "desc": "Zaranda eléctrica vibratoria 80W", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_30", "cat": "Maquinaria", "desc": "Peletizadora industrial  de 25 HP motor diésel", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_31", "cat": "Maquinaria", "desc": "Pala carbonera con cabo", "und": "unidad", "cant": "6", "prov": "TECNICERCAS SAS"}, {"id": "org5_32", "cat": "Maquinaria", "desc": "Pala palín con cabo", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_33", "cat": "Insumos", "desc": "Bieldo Herragro 5 dientes", "und": "unidad", "cant": "3", "prov": "TECNICERCAS SAS"}, {"id": "org5_34", "cat": "Insumos", "desc": "Carretilla tolva metálica galvanizada", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_35", "cat": "Insumos", "desc": "Termómetro digital para suelos Hanna", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_36", "cat": "Insumos", "desc": "PHmetro digital Hanna", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_37", "cat": "Insumos", "desc": "Hidrómetro Baumé Hanna", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_38", "cat": "Insumos", "desc": "Caneca metálica abierta 55 galones", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_39", "cat": "Insumos", "desc": "Caneca plástica 200 L con aro y tapa", "und": "unidad", "cant": "20", "prov": "TECNICERCAS SAS"}, {"id": "org5_40", "cat": "Insumos", "desc": "Caneca plástica 120 L con aro y tapa", "und": "unidad", "cant": "20", "prov": "TECNICERCAS SAS"}, {"id": "org5_41", "cat": "Insumos", "desc": "Balde plástico 20 L", "und": "unidad", "cant": "20", "prov": "TECNICERCAS SAS"}, {"id": "org5_42", "cat": "Insumos", "desc": "Poma plástica 20 L", "und": "unidad", "cant": "150", "prov": "TECNICERCAS SAS"}, {"id": "org5_43", "cat": "Insumos", "desc": "Melaza 30 kg", "und": "unidad", "cant": "130", "prov": "TECNICERCAS SAS"}, {"id": "org5_44", "cat": "Insumos", "desc": "Perlines rectangulares calibre 18 8x4 Largo: 6m", "und": "unidad", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_45", "cat": "Insumos", "desc": "Perlines rectangulares calibre 20 25x50x0.85 Largo: 6m", "und": "unidad", "cant": "150", "prov": "TECNICERCAS SAS"}, {"id": "org5_46", "cat": "Insumos", "desc": "Kit amarras x 20", "und": "unidad", "cant": "25", "prov": "TECNICERCAS SAS"}, {"id": "org5_47", "cat": "Insumos", "desc": "Tornillos 1/4 para zinc trapezoidal", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_48", "cat": "Insumos", "desc": "Cable encauchetado 3x12 rollo x 100m", "und": "unidad", "cant": "3", "prov": "TECNICERCAS SAS"}, {"id": "org5_49", "cat": "Insumos", "desc": "Taco 1x30A enchufable", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_50", "cat": "Insumos", "desc": "Caja de reparto plástica 2400", "und": "unidad", "cant": "3", "prov": "TECNICERCAS SAS"}, {"id": "org5_51", "cat": "Insumos", "desc": "Tomacorriente incrustar 125V 20A", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_52", "cat": "Insumos", "desc": "Interruptor sencillo conmutable", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_53", "cat": "Insumos", "desc": "Plafón AVE", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_54", "cat": "Insumos", "desc": "Tubos PVC 1\"", "und": "unidad", "cant": "15", "prov": "TECNICERCAS SAS"}, {"id": "org5_55", "cat": "Insumos", "desc": "Uniones PVC 1\"", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_56", "cat": "Insumos", "desc": "Tubos PVC 1/2\"", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_57", "cat": "Insumos", "desc": "Codos PVC 1/2\"", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_58", "cat": "Insumos", "desc": "T PVC 1/2\"", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_59", "cat": "Insumos", "desc": "Uniones PVC 1/2\"", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_60", "cat": "Insumos", "desc": "Pegante PVC", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_61", "cat": "Insumos", "desc": "Llave de paso 1/2\"", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_62", "cat": "Insumos", "desc": "Llave terminal 1/2\"", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_63", "cat": "Insumos", "desc": "Sulfato de cobre", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_64", "cat": "Insumos", "desc": "Azufre", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_65", "cat": "Insumos", "desc": "Cal viva paca 50 kg", "und": "kilo", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_66", "cat": "Insumos", "desc": "Bórax", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_67", "cat": "Insumos", "desc": "Sulfato de magnesio", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_68", "cat": "Insumos", "desc": "Sulfato de manganeso", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_69", "cat": "Insumos", "desc": "Sulfato de potasio", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_70", "cat": "Insumos", "desc": "Hidróxido de potasio", "und": "kilo", "cant": "200", "prov": "TECNICERCAS SAS"}, {"id": "org5_71", "cat": "Insumos", "desc": "Roca fosfórica paca 50 kg", "und": "Bulto", "cant": "30", "prov": "TECNICERCAS SAS"}, {"id": "org5_72", "cat": "Insumos", "desc": "Sacos tipo costal en lona 50 kg", "und": "Unidad", "cant": "1000", "prov": "TECNICERCAS SAS"}, {"id": "org5_73", "cat": "Insumos", "desc": "Tanque plástico 1000 L", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_74", "cat": "Insumos", "desc": "Pie de cría lombriz roja CALIFORNIANA", "und": "Libra", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_75", "cat": "Insumos", "desc": "Manguera transparente nivel 6 mm x 100 m", "und": "metro", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_76", "cat": "Insumos", "desc": "Kit cromatografía análisis compost completo", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_77", "cat": "Mano de obra", "desc": "Explanaacion y replanteo del terreno", "und": "Contrato", "cant": "1", "prov": "Rafael Antonio Sánchez"}, {"id": "org5_78", "cat": "Mano de obra", "desc": "Construccion de apliacion de Biofabica en 600 m2 , incluye acometidas y conexiones a los sitemas existentes", "und": "Contrato", "cant": "1", "prov": "Jefferson García Castro"}]};
 
+// ── FIREBASE CONFIG ──────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyCE6xULZWxNvpFm3hH0diGaWiTNDrNbZFA",
+  authDomain: "cronograma-caqueta-6871e.firebaseapp.com",
+  databaseURL: "https://cronograma-caqueta-6871e-default-rtdb.firebaseio.com",
+  projectId: "cronograma-caqueta-6871e",
+  storageBucket: "cronograma-caqueta-6871e.firebasestorage.app",
+  messagingSenderId: "180387253590",
+  appId: "1:180387253590:web:15ce10a494b71b9988daf7"
+};
+
+// ── SCHEDULE DATES ───────────────────────────────────────────────
 const SCHEDULE_DATES = {
   1: {
     'WILMES MONTAÑA LONDOÑO - ALMACENES CORAL': { inicio: '01 jun 2026', fin: '13 jun 2026' },
@@ -221,6 +235,19 @@ const SCHEDULE_DATES = {
   }
 };
 
+const ORGS = [
+  {num:1, org:"Asociación de Agroempresarios de la Amazonia", visita:"17 jun 2026"},
+  {num:2, org:"Comité de Caucheros del Municipio del Doncello", visita:"18 jun 2026"},
+  {num:3, org:"Asociación de Ganaderos de Milán", visita:"19 jun 2026"},
+  {num:4, org:"Asociación de Fruticultores Ecológicos del Caquetá — ECOFRUT", visita:"25 jun 2026"},
+  {num:5, org:"Asoc. Orgánica Agrícola de Cacaoteros — San José del Fragua", visita:"26 jun 2026"},
+];
+
+// ── STATE (from Firebase) ─────────────────────────────────────────
+let state = {};
+let db = null;
+let dbRef = null;
+
 function getEstDates(orgNum, provName) {
   const orgDates = SCHEDULE_DATES[orgNum] || {};
   const up = (provName||'').toUpperCase();
@@ -230,28 +257,14 @@ function getEstDates(orgNum, provName) {
   return orgDates['default'] || null;
 }
 
-const ORGS = [
-  {num:1, org:"Asociación de Agroempresarios de la Amazonia", visita:"17 jun 2026"},
-  {num:2, org:"Comité de Caucheros del Municipio del Doncello", visita:"18 jun 2026"},
-  {num:3, org:"Asociación de Ganaderos de Milán", visita:"19 jun 2026"},
-  {num:4, org:"Asociación de Fruticultores Ecológicos del Caquetá — ECOFRUT", visita:"25 jun 2026"},
-  {num:5, org:"Asoc. Orgánica Agrícola de Cacaoteros — San José del Fragua", visita:"26 jun 2026"},
-];
-
-const STORAGE_KEY = 'caqueta_2026_state';
-let state = {};
-
-function loadState() {
-  try { state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e){ state={}; }
-}
-function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 function getItemState(id) { return state[id] || {status:'pendiente', fecha:''}; }
-function setItemState(id, key, val) {
-  if(!state[id]) state[id]={status:'pendiente',fecha:''};
-  state[id][key]=val;
-  saveState();
-  updateGlobalProgress();
-  updateOrgProgress(id.split('_')[0].replace('org',''));
+
+function saveToFirebase(id, key, val) {
+  if(!state[id]) state[id] = {status:'pendiente', fecha:''};
+  state[id][key] = val;
+  if(dbRef) {
+    dbRef.child(id).set(state[id]);
+  }
 }
 
 function normalizecat(cat) {
@@ -280,7 +293,8 @@ function onSearch(v){ searchTerm=v.toLowerCase(); render(); }
 function toggleStatus(id) {
   const s = getItemState(id);
   const newStatus = s.status==='pendiente' ? 'entregado' : 'pendiente';
-  setItemState(id,'status',newStatus);
+  saveToFirebase(id, 'status', newStatus);
+  // UI update immediately
   const btn = document.getElementById('btn_'+id);
   if(btn){
     btn.textContent = newStatus==='entregado' ? '✅ Entregado' : '⏳ Pendiente';
@@ -290,7 +304,9 @@ function toggleStatus(id) {
   updateOrgProgress(id.split('_')[0].replace('org',''));
 }
 
-function onFechaChange(id, val) { setItemState(id,'fecha',val); }
+function onFechaChange(id, val) {
+  saveToFirebase(id, 'fecha', val);
+}
 
 function updateGlobalProgress() {
   let total=0, ent=0;
@@ -372,8 +388,7 @@ function render() {
           <div class="fecha-wrap">
             <span class="fecha-label">Fecha real entrega</span>
             <input class="fecha-input" type="date" value="${s.fecha||''}"
-              onchange="onFechaChange('${item.id}',this.value)"
-              title="Registrar fecha real de entrega">
+              onchange="onFechaChange('${item.id}',this.value)">
           </div>
           <button class="status-btn status-${isEnt?'entregado':'pendiente'}"
             id="btn_${item.id}" onclick="toggleStatus('${item.id}')">
@@ -449,10 +464,32 @@ function renderVisits(){
   });
 }
 
-loadState();
-render();
-renderVisits();
-updateGlobalProgress();
+// ── INIT FIREBASE ─────────────────────────────────────────────────
+function showSyncStatus(msg, color) {
+  let el = document.getElementById('sync-status');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = color;
+}
+
+window.addEventListener('load', function() {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  dbRef = db.ref('estado');
+  showSyncStatus('⟳ Conectando…', '#F5A623');
+  dbRef.on('value', (snapshot) => {
+  state = snapshot.val() || {};
+  render();
+  renderVisits();
+  updateGlobalProgress();
+  showSyncStatus('🟢 Sincronizado', '#00C9A7');
+}, (error) => {
+  showSyncStatus('🔴 Sin conexión', '#E74C3C');
+  render();
+  renderVisits();
+  updateGlobalProgress();
+});
+}); // end window.load
 </script>
 </body>
 </html>
