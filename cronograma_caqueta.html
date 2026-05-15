@@ -234,6 +234,28 @@ h1 em{color:var(--accent);font-style:normal}
 footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:center;font-size:11px;color:rgba(255,255,255,.2);margin-bottom:20px}
 .no-results{text-align:center;padding:50px;color:rgba(255,255,255,.3);font-size:14px;display:none}
 
+/* MODAL DE ACCESO */
+.modal-overlay{position:fixed;inset:0;background:rgba(7,14,26,.85);backdrop-filter:blur(8px);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:linear-gradient(145deg,#0F2540,#0B1F3A);border:1px solid rgba(0,201,167,.25);border-radius:24px;padding:36px 32px;max-width:400px;width:100%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04) inset;animation:modalIn .3s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.92) translateY(16px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-icon{font-size:36px;margin-bottom:12px}
+.modal-org{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.modal-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff;margin-bottom:6px;line-height:1.3}
+.modal-sub{font-size:13px;color:rgba(255,255,255,.4);margin-bottom:24px;line-height:1.5}
+.modal-input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;color:#fff;font-family:'Syne',sans-serif;font-size:18px;font-weight:700;letter-spacing:.12em;text-align:center;padding:14px 16px;outline:none;transition:border-color .2s;text-transform:uppercase;margin-bottom:12px}
+.modal-input:focus{border-color:var(--accent);background:rgba(0,201,167,.06)}
+.modal-input::placeholder{font-size:13px;font-weight:400;letter-spacing:0;color:rgba(255,255,255,.25);text-transform:none}
+.modal-error{font-size:12px;color:#FF6B6B;margin-bottom:12px;min-height:16px;font-weight:500}
+.modal-btn{width:100%;background:linear-gradient(135deg,var(--accent),#00a88f);color:var(--navy);font-family:'Syne',sans-serif;font-size:14px;font-weight:800;padding:14px;border-radius:12px;border:none;cursor:pointer;transition:opacity .2s,transform .2s;letter-spacing:.04em}
+.modal-btn:hover{opacity:.9;transform:translateY(-1px)}
+.modal-btn:active{transform:translateY(0)}
+.modal-cancel{display:block;margin-top:14px;font-size:12px;color:rgba(255,255,255,.3);cursor:pointer;transition:color .2s;background:none;border:none;width:100%}
+.modal-cancel:hover{color:rgba(255,255,255,.6)}
+/* CANDADO en org cerrada */
+.org-lock{font-size:14px;margin-left:4px;opacity:.5}
+.org-card.locked .org-header{cursor:pointer}
+.org-card.locked .org-num{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.3)}
+
 /* TOAST */
 .toast{position:fixed;bottom:24px;right:24px;background:rgba(0,201,167,.15);border:1px solid rgba(0,201,167,.4);color:var(--accent);font-size:13px;padding:10px 18px;border-radius:100px;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;font-family:'DM Sans',sans-serif;font-weight:500}
 .toast.show{transform:translateY(0);opacity:1}
@@ -260,6 +282,22 @@ footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:cent
 <body>
 <div class="grid-bg"></div>
 <div class="toast" id="toast"></div>
+
+<!-- MODAL CLAVE DE ACCESO -->
+<div class="modal-overlay" id="modal-overlay" style="display:none" onclick="cerrarModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-icon">🔐</div>
+    <div class="modal-org" id="modal-org-name"></div>
+    <div class="modal-title">Acceso restringido</div>
+    <div class="modal-sub">Ingresa la palabra clave asignada a tu organización para ver su información.</div>
+    <input class="modal-input" id="modal-input" type="password" placeholder="Palabra clave…"
+      onkeydown="if(event.key==='Enter') verificarClave()"
+      oninput="document.getElementById('modal-error').textContent=''">
+    <div class="modal-error" id="modal-error"></div>
+    <button class="modal-btn" onclick="verificarClave()">Ingresar →</button>
+    <button class="modal-cancel" onclick="cerrarModal()">Cancelar</button>
+  </div>
+</div>
 <div class="download-bar">
   <button class="download-btn" onclick="descargarResumen()">
     📄 Descargar resumen
@@ -418,18 +456,69 @@ const SCHEDULE_DISPLAY = {
 };
 
 const ORGS = [
-  {num:1, org:"Asociación de Agroempresarios de la Amazonia", visita:"17 jun 2026"},
-  {num:2, org:"Comité de Caucheros del Municipio del Doncello", visita:"18 jun 2026"},
-  {num:3, org:"Asociación de Ganaderos de Milán", visita:"19 jun 2026"},
-  {num:4, org:"Asociación de Fruticultores Ecológicos del Caquetá — ECOFRUT", visita:"25 jun 2026"},
-  {num:5, org:"Asoc. Orgánica Agrícola de Cacaoteros — San José del Fragua", visita:"26 jun 2026"},
+  {num:1, org:"Asociación de Agroempresarios de la Amazonia", visita:"17 jun 2026",    clave:"AMAZONIA1"},
+  {num:2, org:"Comité de Caucheros del Municipio del Doncello", visita:"18 jun 2026",  clave:"DONCELLO2"},
+  {num:3, org:"Asociación de Ganaderos de Milán", visita:"19 jun 2026",                clave:"MILAN3"},
+  {num:4, org:"Asociación de Fruticultores Ecológicos del Caquetá — ECOFRUT", visita:"25 jun 2026", clave:"ECOFRUT4"},
+  {num:5, org:"Asoc. Orgánica Agrícola de Cacaoteros — San José del Fragua", visita:"26 jun 2026",  clave:"FRAGUA5"},
 ];
 
-let state = {};
+// Organizaciones desbloqueadas en esta sesión
+const desbloqueadas = new Set();
 let db = null;
 let dbRef = null;
 let activeFilter = 'todos';
 let searchTerm = '';
+
+// ── CONTROL DE ACCESO POR ORGANIZACIÓN ───────────────────────────
+let orgPendiente = null;
+let cardPendiente = null;
+
+function abrirOrg(orgNum, card) {
+  if(desbloqueadas.has(orgNum)) {
+    card.classList.toggle('open');
+    return;
+  }
+  orgPendiente = orgNum;
+  cardPendiente = card;
+  const org = ORGS.find(o=>o.num===orgNum);
+  document.getElementById('modal-org-name').textContent = org ? org.org : '';
+  document.getElementById('modal-input').value = '';
+  document.getElementById('modal-error').textContent = '';
+  document.getElementById('modal-overlay').style.display = 'flex';
+  setTimeout(()=>document.getElementById('modal-input').focus(), 100);
+}
+
+function verificarClave() {
+  const input = document.getElementById('modal-input').value.trim().toUpperCase();
+  const org = ORGS.find(o=>o.num===orgPendiente);
+  if(!org) return;
+  if(input === org.clave) {
+    desbloqueadas.add(orgPendiente);
+    document.getElementById('modal-overlay').style.display = 'none';
+    // Actualizar ícono de candado
+    const lockEl = document.getElementById('lock_'+orgPendiente);
+    if(lockEl) lockEl.textContent = '🔓';
+    // Abrir la tarjeta
+    if(cardPendiente) cardPendiente.classList.add('open');
+    showToast('🔓 Acceso concedido');
+    orgPendiente = null; cardPendiente = null;
+  } else {
+    const errEl = document.getElementById('modal-error');
+    errEl.textContent = '❌ Clave incorrecta. Intenta de nuevo.';
+    const input = document.getElementById('modal-input');
+    input.value = '';
+    input.style.borderColor = 'rgba(231,76,60,.6)';
+    setTimeout(()=>input.style.borderColor = '', 1000);
+  }
+}
+
+function cerrarModal(event) {
+  if(event && event.target !== document.getElementById('modal-overlay') && event.type !== 'click') return;
+  if(event && event.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').style.display = 'none';
+  orgPendiente = null; cardPendiente = null;
+}
 
 // ── HELPERS ──────────────────────────────────────────────────────
 function getEstDates(orgNum, provName, display=false) {
@@ -1033,10 +1122,10 @@ function render() {
     card.className = 'org-card';
     card.style.animationDelay = (idx*0.06)+'s';
     card.innerHTML = `
-      <div class="org-header" onclick="this.parentElement.classList.toggle('open')">
+      <div class="org-header" onclick="abrirOrg(${org.num}, this.parentElement)">
         <div class="org-num">${org.num}</div>
         <div class="org-info">
-          <div class="org-name">${org.org}</div>
+          <div class="org-name">${org.org} <span class="org-lock" id="lock_${org.num}">${desbloqueadas.has(org.num)?'🔓':'🔒'}</span></div>
           <div class="org-meta">
             <span class="org-visit">📅 2ª visita: ${org.visita}</span>
             <div class="org-progress-mini">
@@ -1050,7 +1139,7 @@ function render() {
         </div>
       </div>
       <div class="org-body">${provGroups}</div>`;
-    if(idx===0 && !searchTerm) card.classList.add('open');
+    if(idx===0 && !searchTerm && desbloqueadas.has(org.num)) card.classList.add('open');
     container.appendChild(card);
   });
 
