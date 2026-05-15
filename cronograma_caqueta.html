@@ -6,6 +6,7 @@
 <title>Cronograma de Entregas — Caquetá 2026</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -13,6 +14,7 @@
   --navy:#0B1F3A;--blue:#1A4F82;--sky:#2E86C1;--accent:#00C9A7;
   --amber:#F5A623;--green:#27AE60;--red:#E74C3C;--purple:#8B5CF6;
   --white:#FFFFFF;--text:#1A2B3C;--muted:#5A7A99;
+  --urgent:#FF4444;--warn:#F5A623;
 }
 body{font-family:'DM Sans',sans-serif;background:var(--navy);color:#fff;min-height:100vh;overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 10% 0%,#1A4F8240 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 90% 100%,#00C9A720 0%,transparent 55%);pointer-events:none;z-index:0}
@@ -29,10 +31,11 @@ h1 em{color:var(--accent);font-style:normal}
 .subtitle{font-size:14px;color:rgba(255,255,255,.45);font-weight:300;line-height:1.6}
 
 /* KPIs */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:28px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin-bottom:28px}
 .kpi{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px 20px;transition:transform .2s,border-color .2s}
 .kpi:hover{transform:translateY(-2px);border-color:rgba(0,201,167,.3)}
 .kpi-num{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;color:var(--accent);line-height:1;margin-bottom:4px}
+.kpi-num.red{color:#FF6B6B}
 .kpi-label{font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.07em}
 
 /* GLOBAL PROGRESS */
@@ -42,9 +45,29 @@ h1 em{color:var(--accent);font-style:normal}
 .gp-pct{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--accent)}
 .progress-bar{height:8px;background:rgba(255,255,255,.08);border-radius:100px;overflow:hidden}
 .progress-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--accent),#00e5bf);transition:width .6s ease}
-.gp-stats{display:flex;gap:20px;margin-top:10px;font-size:12px}
+.gp-stats{display:flex;gap:20px;margin-top:10px;font-size:12px;flex-wrap:wrap}
 .gp-stat{color:rgba(255,255,255,.45)}
 .gp-stat strong{color:rgba(255,255,255,.8);margin-right:4px}
+
+/* URGENTES */
+.urgentes-section{background:rgba(255,68,68,.07);border:1px solid rgba(255,68,68,.25);border-radius:16px;padding:16px 20px;margin-bottom:24px;display:none}
+.urgentes-section.visible{display:block}
+.urgentes-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#FF6B6B;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.urgentes-title span{font-size:16px}
+.urgente-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(255,68,68,.06);margin-bottom:6px;flex-wrap:wrap;gap:8px}
+.urgente-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;white-space:nowrap}
+.urgente-badge.vence-hoy{background:rgba(255,68,68,.2);border:1px solid rgba(255,68,68,.4);color:#FF6B6B}
+.urgente-badge.vence-pronto{background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.35);color:#FBBF24}
+.urgente-desc{font-size:12px;color:rgba(255,255,255,.75);flex:1;min-width:140px}
+.urgente-org{font-size:11px;color:rgba(255,255,255,.4)}
+
+/* TABS */
+.tabs-nav{display:flex;gap:4px;margin-bottom:24px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:4px;flex-wrap:wrap}
+.tab-btn{flex:1;min-width:100px;padding:8px 14px;border:none;background:transparent;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;border-radius:8px;transition:all .2s;white-space:nowrap;text-align:center}
+.tab-btn:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.05)}
+.tab-btn.active{background:rgba(0,201,167,.15);border:1px solid rgba(0,201,167,.3);color:var(--accent);font-weight:600}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
 
 /* CONTROLS */
 .controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;align-items:center}
@@ -52,11 +75,16 @@ h1 em{color:var(--accent);font-style:normal}
 .filter-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:7px 16px;border-radius:100px;cursor:pointer;transition:all .2s}
 .filter-btn:hover{background:rgba(255,255,255,.1);color:#fff}
 .filter-btn.active{background:var(--accent);border-color:var(--accent);color:var(--navy);font-weight:600}
-.search-box{margin-left:auto;position:relative}
-.search-box input{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 16px 8px 38px;border-radius:100px;outline:none;width:220px;transition:border-color .2s,width .3s}
-.search-box input:focus{border-color:var(--accent);width:260px}
+.search-box{position:relative}
+.search-box input{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 16px 8px 38px;border-radius:100px;outline:none;width:200px;transition:border-color .2s,width .3s}
+.search-box input:focus{border-color:var(--accent);width:240px}
 .search-box input::placeholder{color:rgba(255,255,255,.3)}
 .search-box svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:.4;pointer-events:none}
+.action-btns{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.action-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;padding:7px 14px;border-radius:100px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.action-btn:hover{background:rgba(0,201,167,.1);border-color:rgba(0,201,167,.3);color:var(--accent)}
+.action-btn.excel{border-color:rgba(39,174,96,.3);color:#4ADE80}
+.action-btn.excel:hover{background:rgba(39,174,96,.1)}
 
 /* ORG CARDS */
 .orgs{display:flex;flex-direction:column;gap:18px;margin-bottom:50px}
@@ -64,7 +92,6 @@ h1 em{color:var(--accent);font-style:normal}
 .org-card:hover{border-color:rgba(0,201,167,.2)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 .org-card:nth-child(1){animation-delay:.05s}.org-card:nth-child(2){animation-delay:.1s}.org-card:nth-child(3){animation-delay:.15s}.org-card:nth-child(4){animation-delay:.2s}.org-card:nth-child(5){animation-delay:.25s}
-
 .org-header{display:flex;align-items:center;gap:14px;padding:20px 26px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none}
 .org-num{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(0,201,167,.15);border:1px solid rgba(0,201,167,.3);color:var(--accent);flex-shrink:0}
 .org-info{flex:1;min-width:0}
@@ -76,25 +103,33 @@ h1 em{color:var(--accent);font-style:normal}
 .mini-fill{height:100%;border-radius:100px;background:var(--accent);transition:width .5s}
 .org-chevron{width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;transition:transform .25s,background .2s;flex-shrink:0}
 .org-card.open .org-chevron{transform:rotate(180deg);background:rgba(0,201,167,.1)}
-
-/* ORG BODY */
 .org-body{display:none;padding:0 26px 22px}
 .org-card.open .org-body{display:block}
 
 /* ALIADO GROUP */
 .aliado-group{margin-top:18px}
-.aliado-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,255,255,.04);border-radius:10px;margin-bottom:8px}
+.aliado-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,255,255,.04);border-radius:10px;margin-bottom:8px;cursor:pointer;user-select:none}
 .aliado-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(46,134,193,.2);color:#7FC4E8;font-size:14px;flex-shrink:0}
 .aliado-info{flex:1;min-width:0}
 .aliado-name{font-size:13px;font-weight:500;color:rgba(255,255,255,.85)}
 .aliado-fechas{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;align-items:center}
 .aliado-fecha-est{display:flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.45);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);padding:2px 8px;border-radius:100px;white-space:nowrap}
 .aliado-fecha-est strong{color:rgba(255,255,255,.65);margin-left:2px}
-.aliado-count{font-size:11px;color:rgba(255,255,255,.35);background:rgba(255,255,255,.06);padding:2px 8px;border-radius:100px;white-space:nowrap;flex-shrink:0}
+.aliado-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.aliado-count{font-size:11px;color:rgba(255,255,255,.35);background:rgba(255,255,255,.06);padding:2px 8px;border-radius:100px;white-space:nowrap}
+.copy-link-btn{background:rgba(46,134,193,.1);border:1px solid rgba(46,134,193,.2);color:#7FC4E8;font-size:10px;padding:3px 8px;border-radius:100px;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:'DM Sans',sans-serif}
+.copy-link-btn:hover{background:rgba(46,134,193,.2)}
+.aliado-chevron{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;transition:transform .2s;flex-shrink:0;margin-left:6px}
+.aliado-group.open .aliado-chevron{transform:rotate(180deg);background:rgba(0,201,167,.1)}
+.aliado-body{display:none;padding-top:4px}
+.aliado-group.open .aliado-body{display:block}
 
 /* ITEMS */
-.item-row{display:grid;grid-template-columns:1fr auto auto auto auto;gap:10px;align-items:center;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.05);margin-bottom:6px;background:rgba(255,255,255,.02);transition:background .15s}
+.item-row{padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.05);margin-bottom:6px;background:rgba(255,255,255,.02);transition:background .15s}
 .item-row:hover{background:rgba(255,255,255,.04)}
+.item-row.urgente-hoy{border-color:rgba(255,68,68,.3);background:rgba(255,68,68,.04)}
+.item-row.urgente-pronto{border-color:rgba(245,166,35,.25);background:rgba(245,166,35,.03)}
+.item-row-top{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center}
 .item-left{min-width:0}
 .item-desc{font-size:13px;color:rgba(255,255,255,.85);margin-bottom:3px;line-height:1.4}
 .item-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -102,17 +137,32 @@ h1 em{color:var(--accent);font-style:normal}
 .cat-insumos{background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.25);color:#4ADE80}
 .cat-maquinaria{background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.25);color:#A78BFA}
 .cat-mano{background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.25);color:#FBBF24}
-.aliado-body{display:none;padding-top:4px}
-.aliado-group.open .aliado-body{display:block}
-.aliado-header{cursor:pointer;user-select:none}
-.aliado-chevron{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;transition:transform .2s;flex-shrink:0;margin-left:6px}
-.aliado-group.open .aliado-chevron{transform:rotate(180deg);background:rgba(0,201,167,.1)}
-/* Cantidad input */
+.item-qty{font-size:11px;color:rgba(255,255,255,.4)}
+.vence-hoy-badge{font-size:10px;padding:2px 7px;border-radius:100px;background:rgba(255,68,68,.2);border:1px solid rgba(255,68,68,.4);color:#FF6B6B;font-weight:600;animation:blink 1.5s infinite}
+.vence-pronto-badge{font-size:10px;padding:2px 7px;border-radius:100px;background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.35);color:#FBBF24;font-weight:600}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
+.has-note-badge{font-size:10px;padding:2px 7px;border-radius:100px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.25);color:#A78BFA}
+
+/* FECHA INPUT */
+.fecha-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:130px}
+.fecha-label{font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.07em}
+.fecha-input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;font-size:12px;padding:6px 8px;border-radius:8px;outline:none;width:130px;transition:border-color .2s;min-height:34px}
+.fecha-input:focus{border-color:var(--accent)}
+.fecha-input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.4;cursor:pointer;padding:4px}
+
+/* STATUS BTN */
+.status-btn{padding:8px 16px;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .2s;white-space:nowrap;min-width:110px;text-align:center;min-height:36px}
+.status-pendiente{background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#FC8181}
+.status-pendiente:hover{background:rgba(231,76,60,.2)}
+.status-entregado{background:rgba(39,174,96,.15);border:1px solid rgba(39,174,96,.35);color:#4ADE80}
+.status-entregado:hover{background:rgba(39,174,96,.25)}
+
+/* CANTIDAD PARCIAL */
 .cant-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:90px}
 .cant-label{font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.07em}
 .cant-input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;font-size:12px;padding:4px 8px;border-radius:8px;outline:none;width:90px;transition:border-color .2s;text-align:center}
 .cant-input:focus{border-color:var(--amber)}
-/* Historial entregas parciales */
+/* HISTORIAL PARCIALES */
 .historial{margin-top:8px;border-top:1px solid rgba(255,255,255,.05);padding-top:8px}
 .hist-title{font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
 .hist-list{display:flex;flex-direction:column;gap:4px}
@@ -121,29 +171,56 @@ h1 em{color:var(--accent);font-style:normal}
 .hist-cant{color:rgba(255,255,255,.7)}
 .hist-del{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.25);cursor:pointer;font-size:13px;padding:0 2px;transition:color .2s}
 .hist-del:hover{color:#E74C3C}
-/* Download button */
+/* BOTÓN DESCARGA FLOTANTE */
 .download-bar{position:fixed;bottom:24px;right:24px;z-index:100}
 .download-btn{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--accent),#00a88f);color:var(--navy);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:14px 22px;border-radius:100px;border:none;cursor:pointer;box-shadow:0 8px 32px rgba(0,201,167,.35);transition:transform .2s,box-shadow .2s}
 .download-btn:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,201,167,.5)}
-.item-qty{font-size:11px;color:rgba(255,255,255,.4)}
 
-/* FECHA INPUT */
-.fecha-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:130px}
-.fecha-label{font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.07em}
-.fecha-input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border-radius:8px;outline:none;width:130px;transition:border-color .2s}
-.fecha-input:focus{border-color:var(--accent)}
-.fecha-input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.4;cursor:pointer}
+/* NOTA AREA */
+.nota-toggle{display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;width:fit-content}
+.nota-toggle-btn{background:transparent;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.35);font-size:10px;padding:2px 10px;border-radius:100px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.nota-toggle-btn:hover{border-color:rgba(139,92,246,.3);color:#A78BFA}
+.nota-area{display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}
+.nota-area.open{display:block}
+.nota-textarea{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;font-size:12px;padding:8px 12px;outline:none;resize:vertical;min-height:60px;transition:border-color .2s;line-height:1.5}
+.nota-textarea:focus{border-color:rgba(139,92,246,.4)}
+.nota-textarea::placeholder{color:rgba(255,255,255,.2)}
+.nota-meta{font-size:10px;color:rgba(255,255,255,.25);margin-top:4px}
 
-/* STATUS BTN */
-.status-btn{padding:6px 14px;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;border:none;transition:all .2s;white-space:nowrap;min-width:100px;text-align:center}
-.status-pendiente{background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#FC8181}
-.status-pendiente:hover{background:rgba(231,76,60,.2)}
-.status-entregado{background:rgba(39,174,96,.15);border:1px solid rgba(39,174,96,.35);color:#4ADE80}
-.status-entregado:hover{background:rgba(39,174,96,.25)}
+/* HISTORIAL TIMESTAMP */
+.historial-badge{font-size:10px;color:rgba(255,255,255,.3);margin-top:4px}
 
 /* SECTION TITLE */
 .section-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:18px;display:flex;align-items:center;gap:10px}
 .section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,.12),transparent)}
+
+/* DASHBOARD ALIADOS */
+.aliados-dashboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:50px}
+.aliado-card-dash{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:18px 20px;transition:border-color .2s}
+.aliado-card-dash:hover{border-color:rgba(0,201,167,.2)}
+.aliado-dash-name{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;line-height:1.4}
+.aliado-dash-org{font-size:11px;color:rgba(255,255,255,.35);margin-bottom:12px}
+.aliado-dash-bar{height:6px;background:rgba(255,255,255,.08);border-radius:100px;overflow:hidden;margin-bottom:8px}
+.aliado-dash-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--accent),#00e5bf);transition:width .6s}
+.aliado-dash-stats{display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.4)}
+.aliado-dash-pct{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--accent);margin-bottom:2px}
+.aliado-dash-pct.low{color:#FF6B6B}
+.aliado-dash-pct.mid{color:#FBBF24}
+
+/* GANTT */
+.gantt-wrap{overflow-x:auto;margin-bottom:50px;padding-bottom:10px}
+.gantt-table{min-width:700px;width:100%}
+.gantt-header{display:grid;grid-template-columns:220px 1fr;gap:0;margin-bottom:6px}
+.gantt-months{display:flex;gap:0}
+.gantt-month{font-size:10px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.07em;flex:1;text-align:center}
+.gantt-row{display:grid;grid-template-columns:220px 1fr;gap:8px;align-items:center;margin-bottom:8px}
+.gantt-label{font-size:11px;color:rgba(255,255,255,.65);line-height:1.4;padding-right:8px}
+.gantt-label small{display:block;font-size:10px;color:rgba(255,255,255,.3)}
+.gantt-track{position:relative;height:28px;background:rgba(255,255,255,.04);border-radius:6px;overflow:hidden}
+.gantt-bar{position:absolute;height:100%;border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden}
+.gantt-bar-pend{background:rgba(231,76,60,.25);border:1px solid rgba(231,76,60,.3);color:#FC8181}
+.gantt-bar-done{background:rgba(39,174,96,.2);border:1px solid rgba(39,174,96,.3);color:#4ADE80}
+.gantt-today{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,201,167,.6);z-index:2}
 
 /* VISITS */
 .visits-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:50px}
@@ -157,19 +234,42 @@ h1 em{color:var(--accent);font-style:normal}
 footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:center;font-size:11px;color:rgba(255,255,255,.2);margin-bottom:20px}
 .no-results{text-align:center;padding:50px;color:rgba(255,255,255,.3);font-size:14px;display:none}
 
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:rgba(0,201,167,.15);border:1px solid rgba(0,201,167,.4);color:var(--accent);font-size:13px;padding:10px 18px;border-radius:100px;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;font-family:'DM Sans',sans-serif;font-weight:500}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* MOBILE */
 @media(max-width:700px){
-  .item-row{grid-template-columns:1fr;gap:8px}
+  .item-row-top{grid-template-columns:1fr}
   .fecha-wrap{align-items:flex-start}
-  .fecha-input{width:100%}
+  .fecha-input{width:100%;font-size:16px;padding:10px 12px;min-height:44px}
+  .status-btn{width:100%;padding:12px;font-size:14px;min-height:44px}
+  .controls{gap:8px}
+  .search-box input{width:100%}
+  .action-btns{width:100%}
+  .action-btn{flex:1;justify-content:center}
+  .tabs-nav{gap:2px}
+  .tab-btn{min-width:80px;font-size:11px;padding:7px 10px}
+  .aliado-actions{flex-wrap:wrap}
+  .copy-link-btn{width:100%}
 }
 </style>
 </head>
 <body>
 <div class="grid-bg"></div>
+<div class="toast" id="toast"></div>
+<div class="download-bar">
+  <button class="download-btn" onclick="descargarResumen()">
+    📄 Descargar resumen
+  </button>
+</div>
 <div class="wrap">
 
 <header>
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px"><div class="badge"><span></span> Caquetá · 2026</div><span id="sync-status" style="font-size:12px;font-weight:500">⟳ Conectando…</span></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+    <div class="badge"><span></span> Caquetá · 2026</div>
+    <span id="sync-status" style="font-size:12px;font-weight:500">⟳ Conectando…</span>
+  </div>
   <h1>Cronograma de<br><em>Entregas</em></h1>
   <p class="subtitle">Seguimiento de órdenes de compra por organización y aliado comercial.</p>
 </header>
@@ -179,6 +279,7 @@ footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:cent
   <div class="kpi"><div class="kpi-num" id="kpi-items">146</div><div class="kpi-label">Ítems totales</div></div>
   <div class="kpi"><div class="kpi-num" id="kpi-entregados">0</div><div class="kpi-label">Entregados</div></div>
   <div class="kpi"><div class="kpi-num" id="kpi-pendientes">146</div><div class="kpi-label">Pendientes</div></div>
+  <div class="kpi"><div class="kpi-num red" id="kpi-urgentes">0</div><div class="kpi-label">🔴 Urgentes</div></div>
 </div>
 
 <div class="global-progress">
@@ -194,37 +295,66 @@ footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:cent
   </div>
 </div>
 
-<div class="controls">
-  <span class="filter-label">Filtrar:</span>
-  <button class="filter-btn active" onclick="setFilter('todos',this)">Todos</button>
-  <button class="filter-btn" onclick="setFilter('pendiente',this)">⏳ Pendientes</button>
-  <button class="filter-btn" onclick="setFilter('entregado',this)">✅ Entregados</button>
-  <div class="search-box">
-    <svg width="14" height="14" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-    <input type="text" id="search" placeholder="Buscar ítem, aliado…" oninput="onSearch(this.value)">
+<!-- ALERTAS URGENTES -->
+<div class="urgentes-section" id="urgentes-section">
+  <div class="urgentes-title"><span>🚨</span> Ítems con vencimiento próximo</div>
+  <div id="urgentes-list"></div>
+</div>
+
+<!-- TABS DE NAVEGACIÓN -->
+<div class="tabs-nav">
+  <button class="tab-btn active" onclick="switchTab('seguimiento',this)">📋 Seguimiento</button>
+  <button class="tab-btn" onclick="switchTab('aliados',this)">🏪 Dashboard aliados</button>
+  <button class="tab-btn" onclick="switchTab('gantt',this)">📅 Cronograma Gantt</button>
+  <button class="tab-btn" onclick="switchTab('visitas',this)">🗓️ Visitas</button>
+</div>
+
+<!-- TAB: SEGUIMIENTO -->
+<div class="tab-panel active" id="tab-seguimiento">
+  <div class="controls">
+    <span class="filter-label">Filtrar:</span>
+    <button class="filter-btn active" onclick="setFilter('todos',this)">Todos</button>
+    <button class="filter-btn" onclick="setFilter('pendiente',this)">⏳ Pendientes</button>
+    <button class="filter-btn" onclick="setFilter('entregado',this)">✅ Entregados</button>
+    <button class="filter-btn" onclick="setFilter('urgente',this)">🔴 Urgentes</button>
+    <div class="search-box">
+      <svg width="14" height="14" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" id="search" placeholder="Buscar ítem, aliado…" oninput="onSearch(this.value)">
+    </div>
+    <div class="action-btns">
+      <button class="action-btn excel" onclick="exportarExcel()">📊 Excel</button>
+    </div>
+  </div>
+  <div class="orgs" id="orgs-container"></div>
+  <div class="no-results" id="no-results">Sin resultados.</div>
+</div>
+
+<!-- TAB: DASHBOARD ALIADOS -->
+<div class="tab-panel" id="tab-aliados">
+  <div class="section-title" style="margin-bottom:20px">Avance por aliado comercial</div>
+  <div class="aliados-dashboard" id="aliados-dashboard"></div>
+</div>
+
+<!-- TAB: GANTT -->
+<div class="tab-panel" id="tab-gantt">
+  <div class="section-title" style="margin-bottom:20px">Cronograma estimado — mayo a agosto 2026</div>
+  <div class="gantt-wrap">
+    <div class="gantt-table" id="gantt-table"></div>
   </div>
 </div>
 
-<div class="orgs" id="orgs-container"></div>
-<div class="no-results" id="no-results">Sin resultados.</div>
-
-<div class="section-title">Calendario · 2ª Visita</div>
-<div class="visits-grid" id="visits-grid"></div>
-
-<footer>Fuente: Planes de Compra Caquetá 2026 · Estado guardado automáticamente en el navegador</footer>
+<!-- TAB: VISITAS -->
+<div class="tab-panel" id="tab-visitas">
+  <div class="section-title">Calendario · 2ª Visita</div>
+  <div class="visits-grid" id="visits-grid"></div>
 </div>
 
-<div class="download-bar">
-  <button class="download-btn" onclick="descargarResumen()">
-    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Descargar Resumen
-  </button>
+<footer>Fuente: Planes de Compra Caquetá 2026 · v2.0 — Sincronización Firebase · Exportación Excel · Alertas · Notas · Gantt</footer>
 </div>
 
 <script>
-const ALL_DATA = {"1": [{"id": "org1_0", "cat": "Materiales de construcción", "desc": "CEMENTO CEMEX GRIS X 50 KILOS", "und": "Und", "cant": "44", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_1", "cat": "Materiales de construcción", "desc": "BLOQUE CAQUETA", "und": "Und", "cant": "490", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_2", "cat": "Materiales de construcción", "desc": "MALLA ELECTROSOLDADA 4 MM (2.36 MT X 6 MT)", "und": "Und", "cant": "2", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_3", "cat": "Materiales de construcción", "desc": "FLEJE 8X8", "und": "Und", "cant": "10", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_4", "cat": "Materiales de construcción", "desc": "ALAMBRE NEGRO X KILO", "und": "Kg", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_5", "cat": "Materiales de construcción", "desc": "TUBO SANITARIO LIVIANO X 6 COLTUBAC", "und": "Und", "cant": "9", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_6", "cat": "Materiales de construcción", "desc": "TUBO RECTANGULAR 8X4 CAL 18 FAJOBE", "und": "Und", "cant": "19", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_7", "cat": "Maquinaria", "desc": "FUMIGADORA STIHL SR440 CON MOTOR DE CAÑÓN", "und": "Und", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_8", "cat": "Mano de Obra", "desc": "SERVICIO DE CONSTRUCCIÓN MAESTRO DE OBRA Y AYUDANTES", "und": "Glb", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_9", "cat": "Maquinaria", "desc": "TRITURADORA CHIPEADORA DE RAMAS TCT-1500 MOTOR GASOLINA 14 HP", "und": "Und", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_10", "cat": "Materiales de construcción", "desc": "TEJA DE ZINC CAL 34 DE 3.66 MT", "und": "Und", "cant": "30", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_11", "cat": "Materiales de construcción", "desc": "VARILLA CORRUGADA 3/8\" (3.37 KL #3)", "und": "Und", "cant": "20", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}], "2": [{"id": "org2_0", "cat": "Maquinaria", "desc": "Minitractor motocultor Forte diésel 11 HP (arranque eléctrico)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_1", "cat": "Maquinaria", "desc": "Fumigadora con motor Royal Condor “La Poderosa” TU26", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_2", "cat": "Maquinaria", "desc": "Electrobomba Barnes HE 1.5 30-1 (1E0559)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_3", "cat": "Maquinaria", "desc": "Estación Honda GX160 + cabezote ES22 + 200 m manguera café + lanzas", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_4", "cat": "Materiales de construcción", "desc": "Manguera succión corrugada 1½\" × 6 m (Guio)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_5", "cat": "Materiales de construcción", "desc": "Válvula de pie 1½\" PVC (LD-810)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_6", "cat": "Materiales de construcción", "desc": "Tee galvanizada 1½\"", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_7", "cat": "Materiales de construcción", "desc": "Niple galvanizado 1½\" × 5 cm", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_8", "cat": "Materiales de construcción", "desc": "Tapón galvanizado 1½\" (macho)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_9", "cat": "Materiales de construcción", "desc": "Acople aluminio espigo 1½\"", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_10", "cat": "Materiales de construcción", "desc": "Abrazadera industrial 1½\" (T-506)", "und": "UND", "cant": "2", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_11", "cat": "Materiales de construcción", "desc": "Cinta aislante negra 3M × 10 m", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_12", "cat": "Insumos", "desc": "Sulfato de cobre", "und": "KG", "cant": "5", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_13", "cat": "Insumos", "desc": "Sulfato de potasio x 25 kg", "und": "BULTO", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_14", "cat": "Insumos", "desc": "Sulfato de magnesio x 25 kg", "und": "BULTO", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_15", "cat": "Insumos", "desc": "Sulfato de manganeso", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_16", "cat": "Insumos", "desc": "Sulfato de zinc", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_17", "cat": "Insumos", "desc": "Sulfato calcero", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_18", "cat": "Insumos", "desc": "Molibdato de sodio", "und": "LB", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_19", "cat": "Insumos", "desc": "Cloruro de cobalto x 150 g", "und": "UNIDAD", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_20", "cat": "Insumos", "desc": "Bórax", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_21", "cat": "Materiales de construcción", "desc": "Ladrillo # 4", "und": "Unidad", "cant": "643", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org2_22", "cat": "Materiales de construcción", "desc": "Tubo rectangular 8×4 cal 20 Fajobe", "und": "Unidad", "cant": "10", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org2_23", "cat": "Materiales de construcción", "desc": "Teja de zinc cal 33 x 3 m", "und": "Unidad", "cant": "30", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}], "3": [{"id": "org3_0", "cat": "Insumos", "desc": "biodigestor 5000 litros", "und": "Unidad", "cant": "1", "prov": "JAIRO LEON CHAVES CADEN"}, {"id": "org3_1", "cat": "Maquinaria", "desc": "minicultivador", "und": "Unidad", "cant": "1", "prov": "JAIRO LEON CHAVES CADEN"}, {"id": "org3_2", "cat": "Maquinaria", "desc": "remolque", "und": "Unidad", "cant": "1", "prov": "JAIRO LEON CHAVES CADEN"}, {"id": "org3_3", "cat": "Insumos", "desc": "Miel * 30 Kg", "und": "Unidad", "cant": "4", "prov": "JAIRO LEON CHAVES CADEN"}], "4": [{"id": "org4_0", "cat": "Mano de Obra", "desc": "Elaboración a todo costo de 200 metros cuadrados de estructura metálica que consta de 35 metros de torre de 15 x 15 en ángulo de 1'', 625 metros de cercha de carga en tubo estructural cal 18 de 10x4, 170 metros de correa en tubo cal 18 de 10x4, 221 metros de suministro e instalación en lámina master mil cal 28 instalado, 34 metros de canal cal 18 en lámina galvanizada, 168 metros de malla eslabonada cal 14 x 2 ½, 24 postes metálicos de 2'' cal 14 x 3 metros, 2 portones en malla eslabonada para el ingreso y 82 metros cuadrados de malla eslabonada para la parte de afuera.", "und": "Contrato", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_1", "cat": "Mano de Obra", "desc": "Elaboración a todo costo de 200 metros cuadrados de piso, que incluye la adecuación del área existente mediante picado y/o demolición. el proyecto contempla la construcción de una habitación de 4x4 metros en mampostería confinada, con columnas de 20x10, viga de cimentación de 20x20 y viga aérea de 10x20 (incluye acero de refuerzo longitudinal y transversal); dicha estructura será pañetada, estucada y pintada, al igual que la construcción preexistente. asimismo, se realizará el pañete, estuco y pintura de la zona actual, la instalación de una pared falsa en estructura metálica con acabado en pvc y la construcción de un muro de 3 metros en ladrillo acostado. además, se incluye la adecuación de un baño existente (pañete, estuco y pintura interior), la habilitación de puntos eléctricos para las habitaciones y la instalación de tres puertas correderas en pvc.", "und": "Contrato", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_2", "cat": "Insumos", "desc": "Sulfato de cobre", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_3", "cat": "Insumos", "desc": "Sulfato de magnesio.", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_4", "cat": "Insumos", "desc": "Sulfato de Zinc.", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_5", "cat": "Insumos", "desc": "Leonardita", "und": "kg", "cant": "250", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_6", "cat": "Insumos", "desc": "Sulfato de Manganeso.", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_7", "cat": "Insumos", "desc": "Hidroxido de potasio", "und": "kg", "cant": "100", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_8", "cat": "Insumos", "desc": "sulfato de potasio.", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_9", "cat": "Insumos", "desc": "Ácido bórico.", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_10", "cat": "Insumos", "desc": "Azufre", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_11", "cat": "Insumos", "desc": "Cal Dolomita X 50 KG", "und": "bulto", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_12", "cat": "Insumos", "desc": "ROCA FOSFORICA X 50 KG", "und": "bulto", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_13", "cat": "Insumos", "desc": "Melaza en presentacion de 30 kg", "und": "Bolsa", "cant": "10", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_14", "cat": "Insumos", "desc": "Careta o tapaboca FUMIGACION", "und": "unidad", "cant": "2", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_15", "cat": "Insumos", "desc": "Guantes", "und": "Caja", "cant": "5", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_16", "cat": "Insumos", "desc": "Gafas MASCARA DE RESPIRACION", "und": "Unidad", "cant": "10", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_17", "cat": "Insumos", "desc": "Carbonato de fosforo", "und": "kg", "cant": "49", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_18", "cat": "Insumos", "desc": "sulfato de calcio", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_19", "cat": "Insumos", "desc": "Boro", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_20", "cat": "Insumos", "desc": "Cal Viva x 50 kg", "und": "Bulto", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_21", "cat": "Insumos", "desc": "Reactivos para medidor multiparametro de alto rango", "und": "paquete", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_22", "cat": "Insumos", "desc": "SELLADORA DE EMPAQUES MANUAL 110V EN ACERO INOXIDABLE", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_23", "cat": "Insumos", "desc": "PELETIZADORA PARA COMPOST", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_24", "cat": "Insumos", "desc": "Microscopio", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_25", "cat": "Insumos", "desc": "MEDIDOR FOTOM MULTIPARAMETROS Y PHMETRO NUTRIENT", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_26", "cat": "Insumos", "desc": "Canecas plásticas de 200 litros", "und": "Unidades", "cant": "10", "prov": "AGROVET DE LA AMAZONIA SAS"}], "5": [{"id": "org5_0", "cat": "Insumos", "desc": "Cemento Cemex o Argos", "und": "unidad", "cant": "770", "prov": "TECNICERCAS SAS"}, {"id": "org5_1", "cat": "Insumos", "desc": "Varilla corrugada 1/2\"", "und": "unidad", "cant": "250", "prov": "TECNICERCAS SAS"}, {"id": "org5_2", "cat": "Insumos", "desc": "Teja de zinc arquitectonica 3.6 m calibre 30", "und": "unidad", "cant": "205", "prov": "TECNICERCAS SAS"}, {"id": "org5_3", "cat": "Insumos", "desc": "Ladrillo recocido N°4", "und": "unidad", "cant": "3000", "prov": "TECNICERCAS SAS"}, {"id": "org5_4", "cat": "Insumos", "desc": "Polisombra al 60% 50x4", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_5", "cat": "Insumos", "desc": "Gravilla volqueteada 6 metros cubicos", "und": "volqueta", "cant": "25", "prov": "TECNICERCAS SAS"}, {"id": "org5_6", "cat": "Insumos", "desc": "Arena volqueteada 6 metros cubicos", "und": "volqueta", "cant": "23", "prov": "TECNICERCAS SAS"}, {"id": "org5_7", "cat": "Insumos", "desc": "Canaleta y accesorios plástica x 3 m de 4\"", "und": "unidad", "cant": "40", "prov": "TECNICERCAS SAS"}, {"id": "org5_8", "cat": "Insumos", "desc": "Bajantes de canaletas x 3 m de 4\"", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_9", "cat": "Insumos", "desc": "Tanque reservorio Polinter 2000 L alto", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_10", "cat": "Insumos", "desc": "Tanque reservorio Polinter 5000 L alto", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_11", "cat": "Insumos", "desc": "Martillo calibre 19", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_12", "cat": "Insumos", "desc": "Llana plástica 10 x 23 cm", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_13", "cat": "Insumos", "desc": "Llanas metálicas 10 x 23 cm", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_14", "cat": "Insumos", "desc": "Alambre dulce", "und": "kilo", "cant": "25", "prov": "TECNICERCAS SAS"}, {"id": "org5_15", "cat": "Insumos", "desc": "Balde de construcción 17 x 30 cm", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_16", "cat": "Insumos", "desc": "Grapadora industrial Dewalt", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_17", "cat": "Insumos", "desc": "Flejes caja x 20 unidades 3/8 20x20", "und": "unidad", "cant": "17", "prov": "TECNICERCAS SAS"}, {"id": "org5_18", "cat": "Insumos", "desc": "Malla electrosoldada 6m 4mm 15x15", "und": "unidad", "cant": "43", "prov": "TECNICERCAS SAS"}, {"id": "org5_19", "cat": "Maquinaria", "desc": "Triturador picador motor gasolina 9 HP", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_20", "cat": "Insumos", "desc": "Bomba fumigadora motor 25 L MTR", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_21", "cat": "Maquinaria", "desc": "Balanza plataforma 1000 kg 80 x 80 cm", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_22", "cat": "Maquinaria", "desc": "Trituradora chipeadora acople 13 HP", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_23", "cat": "Maquinaria", "desc": "Electrobomba centrífuga 4 HP 11/2 x 11/4\" Trifiliar", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_24", "cat": "Maquinaria", "desc": "Tractor agrícola 50 HP 4x4", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_25", "cat": "Maquinaria", "desc": "Cargador frontal acoplado al tractor", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_26", "cat": "Maquinaria", "desc": "Tolva metálica acople tractor 3 t", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_27", "cat": "Maquinaria", "desc": "Máquina cosedora de costales Agrincol", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_28", "cat": "Maquinaria", "desc": "Hilaza para coser costales", "und": "unidad", "cant": "150", "prov": "TECNICERCAS SAS"}, {"id": "org5_29", "cat": "Maquinaria", "desc": "Zaranda eléctrica vibratoria 80W", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_30", "cat": "Maquinaria", "desc": "Peletizadora industrial  de 25 HP motor diésel", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_31", "cat": "Maquinaria", "desc": "Pala carbonera con cabo", "und": "unidad", "cant": "6", "prov": "TECNICERCAS SAS"}, {"id": "org5_32", "cat": "Maquinaria", "desc": "Pala palín con cabo", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_33", "cat": "Insumos", "desc": "Bieldo Herragro 5 dientes", "und": "unidad", "cant": "3", "prov": "TECNICERCAS SAS"}, {"id": "org5_34", "cat": "Insumos", "desc": "Carretilla tolva metálica galvanizada", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_35", "cat": "Insumos", "desc": "Termómetro digital para suelos Hanna", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_36", "cat": "Insumos", "desc": "PHmetro digital Hanna", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_37", "cat": "Insumos", "desc": "Hidrómetro Baumé Hanna", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_38", "cat": "Insumos", "desc": "Caneca metálica abierta 55 galones", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_39", "cat": "Insumos", "desc": "Caneca plástica 200 L con aro y tapa", "und": "unidad", "cant": "20", "prov": "TECNICERCAS SAS"}, {"id": "org5_40", "cat": "Insumos", "desc": "Caneca plástica 120 L con aro y tapa", "und": "unidad", "cant": "20", "prov": "TECNICERCAS SAS"}, {"id": "org5_41", "cat": "Insumos", "desc": "Balde plástico 20 L", "und": "unidad", "cant": "20", "prov": "TECNICERCAS SAS"}, {"id": "org5_42", "cat": "Insumos", "desc": "Poma plástica 20 L", "und": "unidad", "cant": "150", "prov": "TECNICERCAS SAS"}, {"id": "org5_43", "cat": "Insumos", "desc": "Melaza 30 kg", "und": "unidad", "cant": "130", "prov": "TECNICERCAS SAS"}, {"id": "org5_44", "cat": "Insumos", "desc": "Perlines rectangulares calibre 18 8x4 Largo: 6m", "und": "unidad", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_45", "cat": "Insumos", "desc": "Perlines rectangulares calibre 20 25x50x0.85 Largo: 6m", "und": "unidad", "cant": "150", "prov": "TECNICERCAS SAS"}, {"id": "org5_46", "cat": "Insumos", "desc": "Kit amarras x 20", "und": "unidad", "cant": "25", "prov": "TECNICERCAS SAS"}, {"id": "org5_47", "cat": "Insumos", "desc": "Tornillos 1/4 para zinc trapezoidal", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_48", "cat": "Insumos", "desc": "Cable encauchetado 3x12 rollo x 100m", "und": "unidad", "cant": "3", "prov": "TECNICERCAS SAS"}, {"id": "org5_49", "cat": "Insumos", "desc": "Taco 1x30A enchufable", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_50", "cat": "Insumos", "desc": "Caja de reparto plástica 2400", "und": "unidad", "cant": "3", "prov": "TECNICERCAS SAS"}, {"id": "org5_51", "cat": "Insumos", "desc": "Tomacorriente incrustar 125V 20A", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_52", "cat": "Insumos", "desc": "Interruptor sencillo conmutable", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_53", "cat": "Insumos", "desc": "Plafón AVE", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_54", "cat": "Insumos", "desc": "Tubos PVC 1\"", "und": "unidad", "cant": "15", "prov": "TECNICERCAS SAS"}, {"id": "org5_55", "cat": "Insumos", "desc": "Uniones PVC 1\"", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_56", "cat": "Insumos", "desc": "Tubos PVC 1/2\"", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_57", "cat": "Insumos", "desc": "Codos PVC 1/2\"", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_58", "cat": "Insumos", "desc": "T PVC 1/2\"", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_59", "cat": "Insumos", "desc": "Uniones PVC 1/2\"", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_60", "cat": "Insumos", "desc": "Pegante PVC", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_61", "cat": "Insumos", "desc": "Llave de paso 1/2\"", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_62", "cat": "Insumos", "desc": "Llave terminal 1/2\"", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_63", "cat": "Insumos", "desc": "Sulfato de cobre", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_64", "cat": "Insumos", "desc": "Azufre", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_65", "cat": "Insumos", "desc": "Cal viva paca 50 kg", "und": "kilo", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_66", "cat": "Insumos", "desc": "Bórax", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_67", "cat": "Insumos", "desc": "Sulfato de magnesio", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_68", "cat": "Insumos", "desc": "Sulfato de manganeso", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_69", "cat": "Insumos", "desc": "Sulfato de potasio", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_70", "cat": "Insumos", "desc": "Hidróxido de potasio", "und": "kilo", "cant": "200", "prov": "TECNICERCAS SAS"}, {"id": "org5_71", "cat": "Insumos", "desc": "Roca fosfórica paca 50 kg", "und": "Bulto", "cant": "30", "prov": "TECNICERCAS SAS"}, {"id": "org5_72", "cat": "Insumos", "desc": "Sacos tipo costal en lona 50 kg", "und": "Unidad", "cant": "1000", "prov": "TECNICERCAS SAS"}, {"id": "org5_73", "cat": "Insumos", "desc": "Tanque plástico 1000 L", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_74", "cat": "Insumos", "desc": "Pie de cría lombriz roja CALIFORNIANA", "und": "Libra", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_75", "cat": "Insumos", "desc": "Manguera transparente nivel 6 mm x 100 m", "und": "metro", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_76", "cat": "Insumos", "desc": "Kit cromatografía análisis compost completo", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_77", "cat": "Mano de obra", "desc": "Explanaacion y replanteo del terreno", "und": "Contrato", "cant": "1", "prov": "Rafael Antonio Sánchez"}, {"id": "org5_78", "cat": "Mano de obra", "desc": "Construccion de apliacion de Biofabica en 600 m2 , incluye acometidas y conexiones a los sitemas existentes", "und": "Contrato", "cant": "1", "prov": "Jefferson García Castro"}]};
+const ALL_DATA = {"1": [{"id": "org1_0", "cat": "Materiales de construcción", "desc": "CEMENTO CEMEX GRIS X 50 KILOS", "und": "Und", "cant": "44", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_1", "cat": "Materiales de construcción", "desc": "BLOQUE CAQUETA", "und": "Und", "cant": "490", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_2", "cat": "Materiales de construcción", "desc": "MALLA ELECTROSOLDADA 4 MM (2.36 MT X 6 MT)", "und": "Und", "cant": "2", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_3", "cat": "Materiales de construcción", "desc": "FLEJE 8X8", "und": "Und", "cant": "10", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_4", "cat": "Materiales de construcción", "desc": "ALAMBRE NEGRO X KILO", "und": "Kg", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_5", "cat": "Materiales de construcción", "desc": "TUBO SANITARIO LIVIANO X 6 COLTUBAC", "und": "Und", "cant": "9", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_6", "cat": "Materiales de construcción", "desc": "TUBO RECTANGULAR 8X4 CAL 18 FAJOBE", "und": "Und", "cant": "19", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_7", "cat": "Maquinaria", "desc": "FUMIGADORA STIHL SR440 CON MOTOR DE CAÑÓN", "und": "Und", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_8", "cat": "Mano de Obra", "desc": "SERVICIO DE CONSTRUCCIÓN MAESTRO DE OBRA Y AYUDANTES", "und": "Glb", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_9", "cat": "Maquinaria", "desc": "TRITURADORA CHIPEADORA DE RAMAS TCT-1500 MOTOR GASOLINA 14 HP", "und": "Und", "cant": "1", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_10", "cat": "Materiales de construcción", "desc": "TEJA DE ZINC CAL 34 DE 3.66 MT", "und": "Und", "cant": "30", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org1_11", "cat": "Materiales de construcción", "desc": "VARILLA CORRUGADA 3/8\" (3.37 KL #3)", "und": "Und", "cant": "20", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}], "2": [{"id": "org2_0", "cat": "Maquinaria", "desc": "Minitractor motocultor Forte diésel 11 HP (arranque eléctrico)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_1", "cat": "Maquinaria", "desc": "Fumigadora con motor Royal Condor La Poderosa TU26", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_2", "cat": "Maquinaria", "desc": "Electrobomba Barnes HE 1.5 30-1 (1E0559)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_3", "cat": "Maquinaria", "desc": "Estación Honda GX160 + cabezote ES22 + 200 m manguera café + lanzas", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_4", "cat": "Materiales de construcción", "desc": "Manguera succión corrugada 1.5 pulgada x 6 m", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_5", "cat": "Materiales de construcción", "desc": "Válvula de pie 1.5 pulgada PVC (LD-810)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_6", "cat": "Materiales de construcción", "desc": "Tee galvanizada 1.5 pulgada", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_7", "cat": "Materiales de construcción", "desc": "Niple galvanizado 1.5 pulgada x 5 cm", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_8", "cat": "Materiales de construcción", "desc": "Tapón galvanizado 1.5 pulgada (macho)", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_9", "cat": "Materiales de construcción", "desc": "Acople aluminio espigo 1.5 pulgada", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_10", "cat": "Materiales de construcción", "desc": "Abrazadera industrial 1.5 pulgada (T-506)", "und": "UND", "cant": "2", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_11", "cat": "Materiales de construcción", "desc": "Cinta aislante negra 3M x 10 m", "und": "UND", "cant": "1", "prov": "AGRANZA ZOMAC S.A.S"}, {"id": "org2_12", "cat": "Insumos", "desc": "Sulfato de cobre", "und": "KG", "cant": "5", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_13", "cat": "Insumos", "desc": "Sulfato de potasio x 25 kg", "und": "BULTO", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_14", "cat": "Insumos", "desc": "Sulfato de magnesio x 25 kg", "und": "BULTO", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_15", "cat": "Insumos", "desc": "Sulfato de manganeso", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_16", "cat": "Insumos", "desc": "Sulfato de zinc", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_17", "cat": "Insumos", "desc": "Sulfato calcero", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_18", "cat": "Insumos", "desc": "Molibdato de sodio", "und": "LB", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_19", "cat": "Insumos", "desc": "Cloruro de cobalto x 150 g", "und": "UNIDAD", "cant": "1", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_20", "cat": "Insumos", "desc": "Bórax", "und": "KG", "cant": "10", "prov": "DIEGO ALEXANDER LATORRE BOLAÑOS"}, {"id": "org2_21", "cat": "Materiales de construcción", "desc": "Ladrillo # 4", "und": "Unidad", "cant": "643", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org2_22", "cat": "Materiales de construcción", "desc": "Tubo rectangular 8x4 cal 20 Fajobe", "und": "Unidad", "cant": "10", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}, {"id": "org2_23", "cat": "Materiales de construcción", "desc": "Teja de zinc cal 33 x 3 m", "und": "Unidad", "cant": "30", "prov": "WILMES MONTAÑA LONDOÑO - ALMACENES CORAL"}], "3": [{"id": "org3_0", "cat": "Insumos", "desc": "biodigestor 5000 litros", "und": "Unidad", "cant": "1", "prov": "JAIRO LEON CHAVES CADEN"}, {"id": "org3_1", "cat": "Maquinaria", "desc": "minicultivador", "und": "Unidad", "cant": "1", "prov": "JAIRO LEON CHAVES CADEN"}, {"id": "org3_2", "cat": "Maquinaria", "desc": "remolque", "und": "Unidad", "cant": "1", "prov": "JAIRO LEON CHAVES CADEN"}, {"id": "org3_3", "cat": "Insumos", "desc": "Miel x 30 Kg", "und": "Unidad", "cant": "4", "prov": "JAIRO LEON CHAVES CADEN"}], "4": [{"id": "org4_0", "cat": "Mano de Obra", "desc": "Elaboración a todo costo de 200 m2 de estructura metálica (torre, cercha, correa, lámina, canal, malla eslabonada, postes, portones)", "und": "Contrato", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_1", "cat": "Mano de Obra", "desc": "Elaboración a todo costo de 200 m2 de piso con adecuación, mampostería confinada, habitación 4x4, pañete, estuco, pintura, baño, puntos eléctricos, puertas correderas PVC", "und": "Contrato", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_2", "cat": "Insumos", "desc": "Sulfato de cobre", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_3", "cat": "Insumos", "desc": "Sulfato de magnesio", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_4", "cat": "Insumos", "desc": "Sulfato de Zinc", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_5", "cat": "Insumos", "desc": "Leonardita", "und": "kg", "cant": "250", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_6", "cat": "Insumos", "desc": "Sulfato de Manganeso", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_7", "cat": "Insumos", "desc": "Hidroxido de potasio", "und": "kg", "cant": "100", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_8", "cat": "Insumos", "desc": "sulfato de potasio", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_9", "cat": "Insumos", "desc": "Ácido bórico", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_10", "cat": "Insumos", "desc": "Azufre", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_11", "cat": "Insumos", "desc": "Cal Dolomita X 50 KG", "und": "bulto", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_12", "cat": "Insumos", "desc": "ROCA FOSFORICA X 50 KG", "und": "bulto", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_13", "cat": "Insumos", "desc": "Melaza en presentacion de 30 kg", "und": "Bolsa", "cant": "10", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_14", "cat": "Insumos", "desc": "Careta o tapaboca FUMIGACION", "und": "unidad", "cant": "2", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_15", "cat": "Insumos", "desc": "Guantes", "und": "Caja", "cant": "5", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_16", "cat": "Insumos", "desc": "Gafas MASCARA DE RESPIRACION", "und": "Unidad", "cant": "10", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_17", "cat": "Insumos", "desc": "Carbonato de fosforo", "und": "kg", "cant": "49", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_18", "cat": "Insumos", "desc": "sulfato de calcio", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_19", "cat": "Insumos", "desc": "Boro", "und": "kg", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_20", "cat": "Insumos", "desc": "Cal Viva x 50 kg", "und": "Bulto", "cant": "50", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_21", "cat": "Insumos", "desc": "Reactivos para medidor multiparametro de alto rango", "und": "paquete", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_22", "cat": "Insumos", "desc": "SELLADORA DE EMPAQUES MANUAL 110V EN ACERO INOXIDABLE", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_23", "cat": "Insumos", "desc": "PELETIZADORA PARA COMPOST", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_24", "cat": "Insumos", "desc": "Microscopio", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_25", "cat": "Insumos", "desc": "MEDIDOR FOTOM MULTIPARAMETROS Y PHMETRO NUTRIENT", "und": "UNIDAD", "cant": "1", "prov": "AGROVET DE LA AMAZONIA SAS"}, {"id": "org4_26", "cat": "Insumos", "desc": "Canecas plásticas de 200 litros", "und": "Unidades", "cant": "10", "prov": "AGROVET DE LA AMAZONIA SAS"}], "5": [{"id": "org5_0", "cat": "Insumos", "desc": "Cemento Cemex o Argos", "und": "unidad", "cant": "770", "prov": "TECNICERCAS SAS"}, {"id": "org5_1", "cat": "Insumos", "desc": "Varilla corrugada 1/2 pulgada", "und": "unidad", "cant": "250", "prov": "TECNICERCAS SAS"}, {"id": "org5_2", "cat": "Insumos", "desc": "Teja de zinc arquitectonica 3.6 m calibre 30", "und": "unidad", "cant": "205", "prov": "TECNICERCAS SAS"}, {"id": "org5_3", "cat": "Insumos", "desc": "Ladrillo recocido N°4", "und": "unidad", "cant": "3000", "prov": "TECNICERCAS SAS"}, {"id": "org5_4", "cat": "Insumos", "desc": "Polisombra al 60% 50x4", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_5", "cat": "Insumos", "desc": "Gravilla volqueteada 6 metros cubicos", "und": "volqueta", "cant": "25", "prov": "TECNICERCAS SAS"}, {"id": "org5_6", "cat": "Insumos", "desc": "Arena volqueteada 6 metros cubicos", "und": "volqueta", "cant": "23", "prov": "TECNICERCAS SAS"}, {"id": "org5_7", "cat": "Insumos", "desc": "Canaleta y accesorios plástica x 3 m de 4 pulgadas", "und": "unidad", "cant": "40", "prov": "TECNICERCAS SAS"}, {"id": "org5_8", "cat": "Insumos", "desc": "Bajantes de canaletas x 3 m de 4 pulgadas", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_9", "cat": "Insumos", "desc": "Tanque reservorio Polinter 2000 L alto", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_10", "cat": "Insumos", "desc": "Tanque reservorio Polinter 5000 L alto", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_11", "cat": "Insumos", "desc": "Martillo calibre 19", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_12", "cat": "Insumos", "desc": "Llana plástica 10 x 23 cm", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_13", "cat": "Insumos", "desc": "Llanas metálicas 10 x 23 cm", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_14", "cat": "Insumos", "desc": "Alambre dulce", "und": "kilo", "cant": "25", "prov": "TECNICERCAS SAS"}, {"id": "org5_15", "cat": "Insumos", "desc": "Balde de construcción 17 x 30 cm", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_16", "cat": "Insumos", "desc": "Grapadora industrial Dewalt", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_17", "cat": "Insumos", "desc": "Flejes caja x 20 unidades 3/8 20x20", "und": "unidad", "cant": "17", "prov": "TECNICERCAS SAS"}, {"id": "org5_18", "cat": "Insumos", "desc": "Malla electrosoldada 6m 4mm 15x15", "und": "unidad", "cant": "43", "prov": "TECNICERCAS SAS"}, {"id": "org5_19", "cat": "Maquinaria", "desc": "Triturador picador motor gasolina 9 HP", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_20", "cat": "Insumos", "desc": "Bomba fumigadora motor 25 L MTR", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_21", "cat": "Maquinaria", "desc": "Balanza plataforma 1000 kg 80 x 80 cm", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_22", "cat": "Maquinaria", "desc": "Trituradora chipeadora acople 13 HP", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_23", "cat": "Maquinaria", "desc": "Electrobomba centrífuga 4 HP 1.5 x 1.25 pulgada Trifiliar", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_24", "cat": "Maquinaria", "desc": "Tractor agrícola 50 HP 4x4", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_25", "cat": "Maquinaria", "desc": "Cargador frontal acoplado al tractor", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_26", "cat": "Maquinaria", "desc": "Tolva metálica acople tractor 3 t", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_27", "cat": "Maquinaria", "desc": "Máquina cosedora de costales Agrincol", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_28", "cat": "Maquinaria", "desc": "Hilaza para coser costales", "und": "unidad", "cant": "150", "prov": "TECNICERCAS SAS"}, {"id": "org5_29", "cat": "Maquinaria", "desc": "Zaranda eléctrica vibratoria 80W", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_30", "cat": "Maquinaria", "desc": "Peletizadora industrial de 25 HP motor diésel", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_31", "cat": "Maquinaria", "desc": "Pala carbonera con cabo", "und": "unidad", "cant": "6", "prov": "TECNICERCAS SAS"}, {"id": "org5_32", "cat": "Maquinaria", "desc": "Pala palín con cabo", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_33", "cat": "Insumos", "desc": "Bieldo Herragro 5 dientes", "und": "unidad", "cant": "3", "prov": "TECNICERCAS SAS"}, {"id": "org5_34", "cat": "Insumos", "desc": "Carretilla tolva metálica galvanizada", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_35", "cat": "Insumos", "desc": "Termómetro digital para suelos Hanna", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_36", "cat": "Insumos", "desc": "PHmetro digital Hanna", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_37", "cat": "Insumos", "desc": "Hidrómetro Baumé Hanna", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_38", "cat": "Insumos", "desc": "Caneca metálica abierta 55 galones", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_39", "cat": "Insumos", "desc": "Caneca plástica 200 L con aro y tapa", "und": "unidad", "cant": "20", "prov": "TECNICERCAS SAS"}, {"id": "org5_40", "cat": "Insumos", "desc": "Caneca plástica 120 L con aro y tapa", "und": "unidad", "cant": "20", "prov": "TECNICERCAS SAS"}, {"id": "org5_41", "cat": "Insumos", "desc": "Balde plástico 20 L", "und": "unidad", "cant": "20", "prov": "TECNICERCAS SAS"}, {"id": "org5_42", "cat": "Insumos", "desc": "Poma plástica 20 L", "und": "unidad", "cant": "150", "prov": "TECNICERCAS SAS"}, {"id": "org5_43", "cat": "Insumos", "desc": "Melaza 30 kg", "und": "unidad", "cant": "130", "prov": "TECNICERCAS SAS"}, {"id": "org5_44", "cat": "Insumos", "desc": "Perlines rectangulares calibre 18 8x4 Largo 6m", "und": "unidad", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_45", "cat": "Insumos", "desc": "Perlines rectangulares calibre 20 25x50x0.85 Largo 6m", "und": "unidad", "cant": "150", "prov": "TECNICERCAS SAS"}, {"id": "org5_46", "cat": "Insumos", "desc": "Kit amarras x 20", "und": "unidad", "cant": "25", "prov": "TECNICERCAS SAS"}, {"id": "org5_47", "cat": "Insumos", "desc": "Tornillos 1/4 para zinc trapezoidal", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_48", "cat": "Insumos", "desc": "Cable encauchetado 3x12 rollo x 100m", "und": "unidad", "cant": "3", "prov": "TECNICERCAS SAS"}, {"id": "org5_49", "cat": "Insumos", "desc": "Taco 1x30A enchufable", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_50", "cat": "Insumos", "desc": "Caja de reparto plástica 2400", "und": "unidad", "cant": "3", "prov": "TECNICERCAS SAS"}, {"id": "org5_51", "cat": "Insumos", "desc": "Tomacorriente incrustar 125V 20A", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_52", "cat": "Insumos", "desc": "Interruptor sencillo conmutable", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_53", "cat": "Insumos", "desc": "Plafón AVE", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_54", "cat": "Insumos", "desc": "Tubos PVC 1 pulgada", "und": "unidad", "cant": "15", "prov": "TECNICERCAS SAS"}, {"id": "org5_55", "cat": "Insumos", "desc": "Uniones PVC 1 pulgada", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_56", "cat": "Insumos", "desc": "Tubos PVC 1/2 pulgada", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_57", "cat": "Insumos", "desc": "Codos PVC 1/2 pulgada", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_58", "cat": "Insumos", "desc": "T PVC 1/2 pulgada", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_59", "cat": "Insumos", "desc": "Uniones PVC 1/2 pulgada", "und": "unidad", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_60", "cat": "Insumos", "desc": "Pegante PVC", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_61", "cat": "Insumos", "desc": "Llave de paso 1/2 pulgada", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_62", "cat": "Insumos", "desc": "Llave terminal 1/2 pulgada", "und": "unidad", "cant": "5", "prov": "TECNICERCAS SAS"}, {"id": "org5_63", "cat": "Insumos", "desc": "Sulfato de cobre", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_64", "cat": "Insumos", "desc": "Azufre", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_65", "cat": "Insumos", "desc": "Cal viva paca 50 kg", "und": "kilo", "cant": "10", "prov": "TECNICERCAS SAS"}, {"id": "org5_66", "cat": "Insumos", "desc": "Bórax", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_67", "cat": "Insumos", "desc": "Sulfato de magnesio", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_68", "cat": "Insumos", "desc": "Sulfato de manganeso", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_69", "cat": "Insumos", "desc": "Sulfato de potasio", "und": "kilo", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_70", "cat": "Insumos", "desc": "Hidróxido de potasio", "und": "kilo", "cant": "200", "prov": "TECNICERCAS SAS"}, {"id": "org5_71", "cat": "Insumos", "desc": "Roca fosfórica paca 50 kg", "und": "Bulto", "cant": "30", "prov": "TECNICERCAS SAS"}, {"id": "org5_72", "cat": "Insumos", "desc": "Sacos tipo costal en lona 50 kg", "und": "Unidad", "cant": "1000", "prov": "TECNICERCAS SAS"}, {"id": "org5_73", "cat": "Insumos", "desc": "Tanque plástico 1000 L", "und": "unidad", "cant": "1", "prov": "TECNICERCAS SAS"}, {"id": "org5_74", "cat": "Insumos", "desc": "Pie de cría lombriz roja CALIFORNIANA", "und": "Libra", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_75", "cat": "Insumos", "desc": "Manguera transparente nivel 6 mm x 100 m", "und": "metro", "cant": "100", "prov": "TECNICERCAS SAS"}, {"id": "org5_76", "cat": "Insumos", "desc": "Kit cromatografía análisis compost completo", "und": "unidad", "cant": "2", "prov": "TECNICERCAS SAS"}, {"id": "org5_77", "cat": "Mano de obra", "desc": "Explanación y replanteo del terreno", "und": "Contrato", "cant": "1", "prov": "Rafael Antonio Sánchez"}, {"id": "org5_78", "cat": "Mano de obra", "desc": "Construcción de ampliación de Biofábrica en 600 m2, incluye acometidas y conexiones a los sistemas existentes", "und": "Contrato", "cant": "1", "prov": "Jefferson García Castro"}]};
 
-// ── FIREBASE CONFIG ──────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyCE6xULZWxNvpFm3hH0diGaWiTNDrNbZFA",
   authDomain: "cronograma-caqueta-6871e.firebaseapp.com",
@@ -235,8 +365,31 @@ const firebaseConfig = {
   appId: "1:180387253590:web:15ce10a494b71b9988daf7"
 };
 
-// ── SCHEDULE DATES ───────────────────────────────────────────────
 const SCHEDULE_DATES = {
+  1: {
+    'WILMES MONTAÑA LONDOÑO - ALMACENES CORAL': { inicio: '2026-06-01', fin: '2026-06-13' },
+    'default': { inicio: '2026-06-01', fin: '2026-06-05' }
+  },
+  2: {
+    'WILMES MONTAÑA LONDOÑO - ALMACENES CORAL': { inicio: '2026-05-18', fin: '2026-05-22' },
+    'DIEGO ALEXANDER LATORRE': { inicio: '2026-05-25', fin: '2026-05-29' },
+    'AGRANZA ZOMAC': { inicio: '2026-05-25', fin: '2026-05-29' },
+    'default': { inicio: '2026-05-25', fin: '2026-05-29' }
+  },
+  3: { 'default': { inicio: '2026-05-25', fin: '2026-05-29' } },
+  4: {
+    'AGROVET DE LA AMAZONIA': { inicio: '2026-05-22', fin: '2026-08-18' },
+    'default': { inicio: '2026-06-01', fin: '2026-08-17' }
+  },
+  5: {
+    'JEFFERSON': { inicio: '2026-06-01', fin: '2026-08-21' },
+    'RAFAEL ANTONIO': { inicio: '2026-06-01', fin: '2026-06-09' },
+    'TECNICERCAS': { inicio: '2026-05-22', fin: '2026-06-30' },
+    'default': { inicio: '2026-05-22', fin: '2026-06-30' }
+  }
+};
+
+const SCHEDULE_DISPLAY = {
   1: {
     'WILMES MONTAÑA LONDOÑO - ALMACENES CORAL': { inicio: '01 jun 2026', fin: '13 jun 2026' },
     'default': { inicio: '01 jun 2026', fin: '05 jun 2026' }
@@ -268,13 +421,16 @@ const ORGS = [
   {num:5, org:"Asoc. Orgánica Agrícola de Cacaoteros — San José del Fragua", visita:"26 jun 2026"},
 ];
 
-// ── STATE (from Firebase) ─────────────────────────────────────────
 let state = {};
 let db = null;
 let dbRef = null;
+let activeFilter = 'todos';
+let searchTerm = '';
 
-function getEstDates(orgNum, provName) {
-  const orgDates = SCHEDULE_DATES[orgNum] || {};
+// ── HELPERS ──────────────────────────────────────────────────────
+function getEstDates(orgNum, provName, display=false) {
+  const src = display ? SCHEDULE_DISPLAY : SCHEDULE_DATES;
+  const orgDates = src[orgNum] || {};
   const up = (provName||'').toUpperCase();
   for(const key of Object.keys(orgDates)) {
     if(key !== 'default' && up.includes(key.toUpperCase())) return orgDates[key];
@@ -282,14 +438,12 @@ function getEstDates(orgNum, provName) {
   return orgDates['default'] || null;
 }
 
-function getItemState(id) { return state[id] || {status:'pendiente', fecha:''}; }
+function getItemState(id) { return state[id] || {status:'pendiente', fecha:'', nota:'', usuario:'', ts:''}; }
 
-function saveToFirebase(id, key, val) {
-  if(!state[id]) state[id] = {status:'pendiente', fecha:''};
-  state[id][key] = val;
-  if(dbRef) {
-    dbRef.child(id).set(state[id]);
-  }
+function saveToFirebase(id, updates) {
+  if(!state[id]) state[id] = {status:'pendiente', fecha:'', nota:'', usuario:'', ts:''};
+  Object.assign(state[id], updates);
+  if(dbRef) dbRef.child(id).update(updates);
 }
 
 function normalizecat(cat) {
@@ -305,163 +459,163 @@ function catClass(cat) {
   return 'cat-insumos';
 }
 
-let activeFilter='todos', searchTerm='';
-
-function setFilter(f,btn){
-  activeFilter=f;
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  render();
-}
-function onSearch(v){ searchTerm=v.toLowerCase(); render(); }
-
-function toggleStatus(id) {
-  const s = getItemState(id);
-  const newStatus = s.status==='pendiente' ? 'entregado' : 'pendiente';
-  saveToFirebase(id, 'status', newStatus);
-  // UI update immediately
-  const btn = document.getElementById('btn_'+id);
-  if(btn){
-    btn.textContent = newStatus==='entregado' ? '✅ Entregado' : '⏳ Pendiente';
-    btn.className = 'status-btn status-'+(newStatus==='entregado'?'entregado':'pendiente');
-  }
-  updateGlobalProgress();
-  updateOrgProgress(id.split('_')[0].replace('org',''));
+function getOrgName(orgNum) {
+  const o = ORGS.find(o=>o.num==orgNum);
+  return o ? o.org : '';
 }
 
-function onFechaChange(id, val) {
-  saveToFirebase(id, 'fecha', val);
+// ── URGENCIA ─────────────────────────────────────────────────────
+function getUrgencia(orgNum, prov) {
+  const est = getEstDates(orgNum, prov, false);
+  if(!est) return null;
+  const fin = new Date(est.fin);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const diff = Math.round((fin - today) / 86400000);
+  if(diff < 0) return 'vencido';
+  if(diff === 0) return 'hoy';
+  if(diff <= 3) return 'pronto';
+  return null;
 }
 
-function updateGlobalProgress() {
-  let total=0, ent=0;
-  for(const orgId in ALL_DATA){
-    ALL_DATA[orgId].forEach(item=>{
-      total++;
-      if(getItemState(item.id).status==='entregado') ent++;
-    });
-  }
-  const pct = total>0 ? Math.round(ent/total*100) : 0;
-  document.getElementById('gp-pct').textContent = pct+'%';
-  document.getElementById('gp-bar').style.width = pct+'%';
-  document.getElementById('gs-ent').textContent = ent;
-  document.getElementById('gs-pen').textContent = total-ent;
-  document.getElementById('gs-tot').textContent = total;
-  document.getElementById('kpi-entregados').textContent = ent;
-  document.getElementById('kpi-pendientes').textContent = total-ent;
-  document.getElementById('kpi-items').textContent = total;
+function isItemUrgente(orgNum, prov, status) {
+  if(status === 'entregado') return false;
+  const u = getUrgencia(orgNum, prov);
+  return u === 'hoy' || u === 'vencido' || u === 'pronto';
 }
 
-function updateOrgProgress(orgNum) {
-  const items = ALL_DATA[orgNum] || [];
-  const ent = items.filter(i=>getItemState(i.id).status==='entregado').length;
-  const pct = items.length>0 ? Math.round(ent/items.length*100) : 0;
-  const miniBar = document.getElementById('mini_'+orgNum);
-  const miniText = document.getElementById('minitxt_'+orgNum);
-  if(miniBar) miniBar.style.width = pct+'%';
-  if(miniText) miniText.textContent = `${ent}/${items.length} · ${pct}%`;
+// ── TOAST ─────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
 }
 
-function registrarParcial(id, und) {
-  const fechaInput = document.getElementById('fechainput_' + id);
-  const cantInput  = document.getElementById('cantinput_' + id);
-  const fecha = fechaInput ? fechaInput.value : '';
-  const cant  = cantInput  ? cantInput.value  : '';
-  if (!fecha || !cant || parseFloat(cant) <= 0) {
-    alert('Por favor ingresa la fecha y la cantidad antes de registrar.');
-    return;
-  }
-  if (!state[id]) state[id] = {status:'pendiente', fecha:'', historial:[]};
-  if (!state[id].historial) state[id].historial = [];
-  state[id].historial.push({ fecha, cant });
-  state[id].fecha = fecha;
-  if (dbRef) dbRef.child(id).set(state[id]);
-  // Clear inputs
-  if (cantInput) cantInput.value = '';
-  // Re-render just this row
-  reRenderRow(id, und);
-  updateGlobalProgress();
-}
-
-function eliminarHistorial(id, idx) {
-  if (!state[id] || !state[id].historial) return;
-  state[id].historial.splice(idx, 1);
-  if (dbRef) dbRef.child(id).set(state[id]);
-  const item = findItem(id);
-  reRenderRow(id, item ? item.und : '');
-}
-
+// ── ENTREGAS PARCIALES ────────────────────────────────────────────
 function findItem(id) {
-  for (const orgId in ALL_DATA) {
-    const found = ALL_DATA[orgId].find(i => i.id === id);
-    if (found) return found;
+  for(const orgId in ALL_DATA) {
+    const found = ALL_DATA[orgId].find(i=>i.id===id);
+    if(found) return found;
   }
   return null;
 }
 
-function reRenderRow(id, und) {
-  const s = getItemState(id);
+function registrarParcial(id, und) {
+  const fechaInput = document.getElementById('fechainput_'+id);
+  const cantInput  = document.getElementById('cantinput_'+id);
+  const fecha = fechaInput ? fechaInput.value : '';
+  const cant  = cantInput  ? cantInput.value  : '';
+  if(!fecha || !cant || parseFloat(cant)<=0) {
+    showToast('⚠️ Ingresa fecha y cantidad antes de registrar');
+    return;
+  }
+  if(!state[id]) state[id] = {status:'pendiente', fecha:'', historial:[], nota:'', usuario:'', ts:''};
+  if(!state[id].historial) state[id].historial = [];
+  state[id].historial.push({fecha, cant});
+  state[id].fecha = fecha;
+  if(dbRef) dbRef.child(id).set(state[id]);
+  if(cantInput) cantInput.value = '';
+  // Re-render this row in place
   const item = findItem(id);
-  if (!item) return;
-  const row = document.getElementById('row_' + id);
-  if (!row) return;
+  reRenderRow(id, item);
+  updateGlobalProgress();
+  showToast('✅ Entrega parcial registrada');
+}
+
+function eliminarHistorial(id, idx) {
+  if(!state[id] || !state[id].historial) return;
+  state[id].historial.splice(idx, 1);
+  if(dbRef) dbRef.child(id).set(state[id]);
+  const item = findItem(id);
+  reRenderRow(id, item);
+}
+
+function reRenderRow(id, item) {
+  if(!item) return;
+  const row = document.getElementById('row_'+id);
+  if(!row) return;
+  const s = getItemState(id);
+  const isEnt = s.status==='entregado';
+  const normCat = normalizecat(item.cat);
   const historial = s.historial || [];
   const histHtml = historial.length > 0 ? `
     <div class="historial">
       <div class="hist-title">📦 Entregas parciales registradas</div>
       <div class="hist-list">
-        ${historial.map((h,i)=>`
+        ${historial.map((h,hi)=>`
           <div class="hist-item">
             <span class="hist-fecha">📅 ${h.fecha}</span>
             <span class="hist-cant">Cantidad: <strong>${h.cant} ${item.und}</strong></span>
-            <button class="hist-del" onclick="eliminarHistorial('${id}',${i})" title="Eliminar">✕</button>
+            <button class="hist-del" onclick="eliminarHistorial('${id}',${hi})">✕</button>
           </div>`).join('')}
       </div>
     </div>` : '';
+  const tsText = s.ts ? `Último cambio: ${new Date(s.ts).toLocaleDateString('es-CO')} ${new Date(s.ts).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}` : '';
+  const usuarioText = s.usuario ? ` · Por: ${s.usuario}` : '';
+  const notaBadgeDisp = s.nota ? 'inline' : 'none';
 
-  const isEnt = s.status === 'entregado';
-  const normCat = normalizecat(item.cat);
+  // Find orgNum for this item
+  let orgNum = 1;
+  for(const oid in ALL_DATA) { if(ALL_DATA[oid].find(i=>i.id===id)) { orgNum=oid; break; } }
+  const u = isEnt ? null : getUrgencia(orgNum, item.prov);
+  const urgBadge = !isEnt && (u==='hoy'||u==='vencido') ? '<span class="vence-hoy-badge">🔴 Vence hoy</span>' : (!isEnt && u==='pronto' ? '<span class="vence-pronto-badge">⚠️ Vence pronto</span>' : '');
+  const urgClass = !isEnt && (u==='hoy'||u==='vencido') ? 'urgente-hoy' : (!isEnt && u==='pronto' ? 'urgente-pronto' : '');
+  row.className = `item-row ${urgClass}`;
+  const provEsc = item.prov.replace(/'/g,"\\'");
+
   row.innerHTML = `
-    <div class="item-left">
-      <div class="item-desc">${item.desc}</div>
-      <div class="item-meta">
-        <span class="cat-badge ${catClass(item.cat)}">${normCat}</span>
-        <span class="item-qty">${item.cant} ${item.und}</span>
+    <div class="item-row-top">
+      <div class="item-left">
+        <div class="item-desc">${item.desc}</div>
+        <div class="item-meta">
+          <span class="cat-badge ${catClass(item.cat)}">${normCat}</span>
+          <span style="font-size:11px;color:rgba(255,255,255,.4)">${item.cant} ${item.und}</span>
+          ${urgBadge}
+          <span class="has-note-badge" id="notabadge_${id}" style="display:${notaBadgeDisp}">📝 Nota</span>
+        </div>
+        ${histHtml}
       </div>
-      ${histHtml}
+      <div class="cant-wrap">
+        <span class="cant-label">Cant. entregada</span>
+        <input class="cant-input" type="number" min="0" placeholder="0" id="cantinput_${id}">
+      </div>
+      <div class="fecha-wrap">
+        <span class="fecha-label">Fecha real entrega</span>
+        <input class="fecha-input" type="date" value="${s.fecha||''}" id="fechainput_${id}" onchange="onFechaChange('${id}',this.value)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:110px">
+        <button style="background:rgba(0,201,167,.15);border:1px solid rgba(0,201,167,.3);color:var(--accent);font-size:10px;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;white-space:nowrap;transition:all .2s" onmouseover="this.style.background='rgba(0,201,167,.25)'" onmouseout="this.style.background='rgba(0,201,167,.15)'"
+          onclick="registrarParcial('${id}','${item.und.replace(/'/g,"\\'")}')">
+          ➕ Registrar entrega
+        </button>
+        <button class="status-btn status-${isEnt?'entregado':'pendiente'}" id="btn_${id}" onclick="toggleStatus('${id}',${orgNum},'${provEsc}')">
+          ${isEnt?'✅ Entregado':'⏳ Pendiente'}
+        </button>
+      </div>
     </div>
-    <div class="cant-wrap">
-      <span class="cant-label">Cant. entregada</span>
-      <input class="cant-input" type="number" min="0" placeholder="0"
-        id="cantinput_${id}" value="">
+    <div class="nota-toggle">
+      <button class="nota-toggle-btn" id="notatoggle_${id}" onclick="toggleNota('${id}')">${s.nota?'📝 Ver nota':'📝 Añadir nota'}</button>
     </div>
-    <div class="fecha-wrap">
-      <span class="fecha-label">Fecha real entrega</span>
-      <input class="fecha-input" type="date" value="${s.fecha||''}"
-        id="fechainput_${id}"
-        onchange="onFechaChange('${id}',this.value)">
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:110px">
-      <button class="status-btn" style="background:rgba(0,201,167,.15);border:1px solid rgba(0,201,167,.3);color:var(--accent);font-size:10px;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;white-space:nowrap"
-        onclick="registrarParcial('${id}','${item.und}')">
-        ➕ Registrar entrega
-      </button>
-      <button class="status-btn status-${isEnt?'entregado':'pendiente'}"
-        id="btn_${id}" onclick="toggleStatus('${id}')">
-        ${isEnt?'✅ Entregado':'⏳ Pendiente'}
-      </button>
+    <div class="nota-area" id="nota_${id}">
+      <textarea class="nota-textarea" placeholder="Observaciones, razón de demora, contacto…" onchange="onNotaChange('${id}',this.value)">${s.nota||''}</textarea>
+      <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+        <input type="text" placeholder="Nombre de quien registra" value="${s.usuario||''}" onchange="onUsuarioChange('${id}',this.value)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:rgba(255,255,255,.6);font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 10px;outline:none;flex:1">
+      </div>
+      <div class="nota-meta historial-badge">${tsText}${usuarioText}</div>
     </div>`;
 }
 
+// ── DESCARGA RESUMEN HTML ─────────────────────────────────────────
 function descargarResumen() {
   const now = new Date();
-  const fechaHoy = now.toLocaleDateString('es-CO', {day:'2-digit',month:'long',year:'numeric'});
+  const fechaHoy = now.toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'});
   let total=0, ent=0, pend=0;
 
   let html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
   <title>Resumen Cronograma Caquetá</title>
   <style>
-    body{font-family:Arial,sans-serif;color:#1A2B3C;padding:30px;max-width:900px;margin:0 auto}
+    body{font-family:Arial,sans-serif;color:#1A2B3C;padding:30px;max-width:960px;margin:0 auto}
     h1{color:#0B1F3A;border-bottom:3px solid #00C9A7;padding-bottom:10px;font-size:22px}
     h2{color:#1A4F82;font-size:16px;margin-top:24px;margin-bottom:8px;border-left:4px solid #00C9A7;padding-left:10px}
     h3{font-size:13px;color:#2E86C1;margin:12px 0 6px;font-weight:600}
@@ -485,33 +639,24 @@ function descargarResumen() {
   <h1>📋 Resumen General de Entregas — Caquetá 2026</h1>
   <div class="meta">Generado el ${fechaHoy} · Fuente: Cronograma Caquetá v2</div>`;
 
-  // Build org sections
   let orgRows = '';
-  ORGS.forEach(org => {
+  ORGS.forEach(org=>{
     const items = ALL_DATA[org.num] || [];
     const orgEnt = items.filter(i=>getItemState(i.id).status==='entregado').length;
     const orgPct = items.length>0 ? Math.round(orgEnt/items.length*100) : 0;
-    total += items.length; ent += orgEnt; pend += (items.length - orgEnt);
-
-    // Group by provider
+    total += items.length; ent += orgEnt; pend += (items.length-orgEnt);
     const byProv = {};
-    items.forEach(item=>{
-      const p = item.prov||'Sin proveedor';
-      if(!byProv[p]) byProv[p]=[];
-      byProv[p].push(item);
-    });
-
+    items.forEach(item=>{ const p=item.prov||'Sin proveedor'; if(!byProv[p]) byProv[p]=[]; byProv[p].push(item); });
     let provTables = '';
-    for(const [prov, provItems] of Object.entries(byProv)){
+    for(const [prov, provItems] of Object.entries(byProv)) {
       const rows = provItems.map(item=>{
         const s = getItemState(item.id);
         const isEnt = s.status==='entregado';
         const hist = s.historial||[];
-        const histTxt = hist.length>0
-          ? hist.map(h=>`${h.fecha}: ${h.cant} ${item.und}`).join('<br>')
-          : '<span style="color:#94A3B8">—</span>';
+        const histTxt = hist.length>0 ? hist.map(h=>`${h.fecha}: ${h.cant} ${item.und}`).join('<br>') : '<span style="color:#94A3B8">—</span>';
+        const notaTxt = s.nota ? `<div style="font-size:11px;color:#5A7A99;margin-top:3px">📝 ${s.nota}</div>` : '';
         return `<tr>
-          <td>${item.desc}</td>
+          <td>${item.desc}${notaTxt}</td>
           <td style="text-align:center">${item.cant} ${item.und}</td>
           <td style="text-align:center"><span class="${isEnt?'tag-ent':'tag-pen'}">${isEnt?'✅ Entregado':'⏳ Pendiente'}</span></td>
           <td>${s.fecha||'<span style="color:#94A3B8">—</span>'}</td>
@@ -522,13 +667,12 @@ function descargarResumen() {
         <table><thead><tr><th>Ítem</th><th>Cant. total</th><th>Estado</th><th>Fecha entrega</th><th>Entregas parciales</th></tr></thead>
         <tbody>${rows}</tbody></table>`;
     }
-
     orgRows += `<div class="section-org">
       <h2>Org. ${org.num} — ${org.org}</h2>
-      <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#5A7A99;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#5A7A99;margin-bottom:10px;flex-wrap:wrap">
         <span>📅 2ª visita: <strong>${org.visita}</strong></span>
         <span>${orgEnt}/${items.length} entregados · ${orgPct}%</span>
-        <div class="prog-bar" style="flex:1"><div class="prog-fill" style="width:${orgPct}%"></div></div>
+        <div class="prog-bar" style="flex:1;min-width:80px"><div class="prog-fill" style="width:${orgPct}%"></div></div>
       </div>
       ${provTables}
     </div>`;
@@ -546,37 +690,171 @@ function descargarResumen() {
   <footer>Cronograma de Entregas Caquetá 2026 · Generado automáticamente desde el sistema de seguimiento</footer>
   </body></html>`;
 
-  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const blob = new Blob([html],{type:'text/html;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = `Resumen_Entregas_Caqueta_${now.toISOString().slice(0,10)}.html`;
   a.click();
   URL.revokeObjectURL(url);
+  showToast('📄 Resumen descargado');
 }
 
+// ── TABS ──────────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  btn.classList.add('active');
+  if(tab==='aliados') renderDashboardAliados();
+  if(tab==='gantt') renderGantt();
+}
+
+// ── FILTER & SEARCH ───────────────────────────────────────────────
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+function onSearch(v) { searchTerm = v.toLowerCase(); render(); }
+
+// ── STATUS TOGGLE ─────────────────────────────────────────────────
+function toggleStatus(id, orgNum, prov) {
+  const s = getItemState(id);
+  const newStatus = s.status === 'pendiente' ? 'entregado' : 'pendiente';
+  const ts = new Date().toISOString();
+  saveToFirebase(id, { status: newStatus, ts });
+  const btn = document.getElementById('btn_'+id);
+  if(btn) {
+    btn.textContent = newStatus==='entregado' ? '✅ Entregado' : '⏳ Pendiente';
+    btn.className = 'status-btn status-'+(newStatus==='entregado'?'entregado':'pendiente');
+  }
+  const row = document.getElementById('row_'+id);
+  if(row) {
+    row.classList.remove('urgente-hoy','urgente-pronto');
+    if(newStatus!=='entregado') {
+      const u = getUrgencia(orgNum, prov);
+      if(u==='hoy'||u==='vencido') row.classList.add('urgente-hoy');
+      else if(u==='pronto') row.classList.add('urgente-pronto');
+    }
+    const histEl = row.querySelector('.historial-badge');
+    if(histEl) {
+      const d = new Date();
+      histEl.textContent = `Último cambio: ${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
+    }
+  }
+  updateGlobalProgress();
+  updateOrgProgress(id.split('_')[0].replace('org',''));
+  updateUrgentes();
+}
+
+function onFechaChange(id, val) {
+  saveToFirebase(id, { fecha: val });
+}
+
+function onNotaChange(id, val) {
+  saveToFirebase(id, { nota: val });
+  const badge = document.getElementById('notabadge_'+id);
+  const toggleBtn = document.getElementById('notatoggle_'+id);
+  if(badge) badge.style.display = val ? 'inline' : 'none';
+  if(toggleBtn) toggleBtn.textContent = val ? '📝 Ver nota' : '📝 Añadir nota';
+}
+
+function onUsuarioChange(id, val) {
+  saveToFirebase(id, { usuario: val });
+}
+
+function toggleNota(id) {
+  const area = document.getElementById('nota_'+id);
+  if(area) area.classList.toggle('open');
+}
+
+// ── PROGRESS ─────────────────────────────────────────────────────
+function updateGlobalProgress() {
+  let total=0, ent=0, urgentes=0;
+  for(const orgId in ALL_DATA) {
+    const org = ORGS.find(o=>o.num==orgId);
+    ALL_DATA[orgId].forEach(item=>{
+      total++;
+      const s = getItemState(item.id);
+      if(s.status==='entregado') ent++;
+      else if(isItemUrgente(orgId, item.prov, s.status)) urgentes++;
+    });
+  }
+  const pct = total>0 ? Math.round(ent/total*100) : 0;
+  document.getElementById('gp-pct').textContent = pct+'%';
+  document.getElementById('gp-bar').style.width = pct+'%';
+  document.getElementById('gs-ent').textContent = ent;
+  document.getElementById('gs-pen').textContent = total-ent;
+  document.getElementById('gs-tot').textContent = total;
+  document.getElementById('kpi-entregados').textContent = ent;
+  document.getElementById('kpi-pendientes').textContent = total-ent;
+  document.getElementById('kpi-items').textContent = total;
+  document.getElementById('kpi-urgentes').textContent = urgentes;
+}
+
+function updateOrgProgress(orgNum) {
+  const items = ALL_DATA[orgNum] || [];
+  const ent = items.filter(i=>getItemState(i.id).status==='entregado').length;
+  const pct = items.length>0 ? Math.round(ent/items.length*100) : 0;
+  const miniBar = document.getElementById('mini_'+orgNum);
+  const miniText = document.getElementById('minitxt_'+orgNum);
+  if(miniBar) miniBar.style.width = pct+'%';
+  if(miniText) miniText.textContent = `${ent}/${items.length} · ${pct}%`;
+}
+
+function updateUrgentes() {
+  const list = document.getElementById('urgentes-list');
+  const section = document.getElementById('urgentes-section');
+  if(!list) return;
+  const items = [];
+  for(const orgId in ALL_DATA) {
+    ALL_DATA[orgId].forEach(item=>{
+      const s = getItemState(item.id);
+      if(s.status==='entregado') return;
+      const u = getUrgencia(orgId, item.prov);
+      if(u==='hoy'||u==='vencido'||u==='pronto') {
+        items.push({item, orgId, urgencia:u});
+      }
+    });
+  }
+  document.getElementById('kpi-urgentes').textContent = items.length;
+  if(items.length===0) { section.classList.remove('visible'); return; }
+  section.classList.add('visible');
+  list.innerHTML = items.slice(0,8).map(({item,orgId,urgencia})=>{
+    const label = urgencia==='hoy'||urgencia==='vencido' ? 'Vence hoy / vencido' : 'Vence en ≤3 días';
+    const cls = urgencia==='hoy'||urgencia==='vencido' ? 'vence-hoy' : 'vence-pronto';
+    return `<div class="urgente-item">
+      <span class="urgente-badge ${cls}">${label}</span>
+      <span class="urgente-desc">${item.desc.substring(0,60)}${item.desc.length>60?'…':''}</span>
+      <span class="urgente-org">${getOrgName(orgId).substring(0,30)}…</span>
+    </div>`;
+  }).join('') + (items.length>8?`<div style="font-size:11px;color:rgba(255,255,255,.3);padding:6px 10px">…y ${items.length-8} más</div>`:'');
+}
 
 function toggleAliado(id) {
   const el = document.getElementById(id);
   if(el) el.classList.toggle('open');
 }
 
+// ── RENDER MAIN ───────────────────────────────────────────────────
 function render() {
   const container = document.getElementById('orgs-container');
   const noRes = document.getElementById('no-results');
-  container.innerHTML='';
-  let visible=0;
+  container.innerHTML = '';
+  let visible = 0;
 
-  ORGS.forEach((org,idx)=>{
+  ORGS.forEach((org, idx)=>{
     const orgItems = ALL_DATA[org.num] || [];
     const filtered = orgItems.filter(item=>{
-      const s = getItemState(item.id).status;
-      const typeMatch = activeFilter==='todos' || s===activeFilter;
-      const searchMatch = !searchTerm ||
-        item.desc.toLowerCase().includes(searchTerm) ||
-        item.prov.toLowerCase().includes(searchTerm) ||
-        org.org.toLowerCase().includes(searchTerm);
-      return typeMatch && searchMatch;
+      const s = getItemState(item.id);
+      const urgente = isItemUrgente(org.num, item.prov, s.status);
+      if(activeFilter==='pendiente' && s.status!=='pendiente') return false;
+      if(activeFilter==='entregado' && s.status!=='entregado') return false;
+      if(activeFilter==='urgente' && !urgente) return false;
+      if(searchTerm && !item.desc.toLowerCase().includes(searchTerm) && !item.prov.toLowerCase().includes(searchTerm) && !org.org.toLowerCase().includes(searchTerm)) return false;
+      return true;
     });
     if(filtered.length===0) return;
     visible++;
@@ -591,64 +869,83 @@ function render() {
     const ent = orgItems.filter(i=>getItemState(i.id).status==='entregado').length;
     const pct = orgItems.length>0 ? Math.round(ent/orgItems.length*100) : 0;
 
-    const provGroups = Object.entries(byProv).map(([prov,items], pi)=>{
+    const provGroups = Object.entries(byProv).map(([prov, items], pi)=>{
       const rows = items.map(item=>{
         const s = getItemState(item.id);
         const isEnt = s.status==='entregado';
         const normCat = normalizecat(item.cat);
+        const u = isEnt ? null : getUrgencia(org.num, prov);
+        const urgClass = !isEnt && (u==='hoy'||u==='vencido') ? 'urgente-hoy' : (!isEnt && u==='pronto' ? 'urgente-pronto' : '');
+        const urgBadge = !isEnt && (u==='hoy'||u==='vencido') ? '<span class="vence-hoy-badge">🔴 Vence hoy</span>' : (!isEnt && u==='pronto' ? '<span class="vence-pronto-badge">⚠️ Vence pronto</span>' : '');
+        const notaBadge = s.nota ? '<span class="has-note-badge" id="notabadge_'+item.id+'">📝 Nota</span>' : '<span class="has-note-badge" id="notabadge_'+item.id+'" style="display:none">📝 Nota</span>';
+        const tsText = s.ts ? `Último cambio: ${new Date(s.ts).toLocaleDateString('es-CO')} ${new Date(s.ts).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}` : '';
+        const usuarioText = s.usuario ? ` · Por: ${s.usuario}` : '';
+
         const historial = s.historial || [];
         const histHtml = historial.length > 0 ? `
           <div class="historial">
             <div class="hist-title">📦 Entregas parciales registradas</div>
             <div class="hist-list">
-              ${historial.map((h,i)=>`
+              ${historial.map((h,hi)=>`
                 <div class="hist-item">
                   <span class="hist-fecha">📅 ${h.fecha}</span>
                   <span class="hist-cant">Cantidad: <strong>${h.cant} ${item.und}</strong></span>
-                  <button class="hist-del" onclick="eliminarHistorial('${item.id}',${i})" title="Eliminar">✕</button>
+                  <button class="hist-del" onclick="eliminarHistorial('${item.id}',${hi})">✕</button>
                 </div>`).join('')}
             </div>
           </div>` : '';
-        return `<div class="item-row" id="row_${item.id}">
-          <div class="item-left">
-            <div class="item-desc">${item.desc}</div>
-            <div class="item-meta">
-              <span class="cat-badge ${catClass(item.cat)}">${normCat}</span>
-              <span class="item-qty">${item.cant} ${item.und}</span>
+
+        return `<div class="item-row ${urgClass}" id="row_${item.id}">
+          <div class="item-row-top">
+            <div class="item-left">
+              <div class="item-desc">${item.desc}</div>
+              <div class="item-meta">
+                <span class="cat-badge ${catClass(item.cat)}">${normCat}</span>
+                <span style="font-size:11px;color:rgba(255,255,255,.4)">${item.cant} ${item.und}</span>
+                ${urgBadge}
+                ${notaBadge}
+              </div>
+              ${histHtml}
             </div>
-            ${histHtml}
+            <div class="cant-wrap">
+              <span class="cant-label">Cant. entregada</span>
+              <input class="cant-input" type="number" min="0" placeholder="0" id="cantinput_${item.id}">
+            </div>
+            <div class="fecha-wrap">
+              <span class="fecha-label">Fecha real entrega</span>
+              <input class="fecha-input" type="date" value="${s.fecha||''}" id="fechainput_${item.id}" onchange="onFechaChange('${item.id}',this.value)">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:110px">
+              <button style="background:rgba(0,201,167,.15);border:1px solid rgba(0,201,167,.3);color:var(--accent);font-size:10px;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;white-space:nowrap;transition:all .2s" onmouseover="this.style.background='rgba(0,201,167,.25)'" onmouseout="this.style.background='rgba(0,201,167,.15)'"
+                onclick="registrarParcial('${item.id}','${item.und.replace(/'/g,"\\'")}')">
+                ➕ Registrar entrega
+              </button>
+              <button class="status-btn status-${isEnt?'entregado':'pendiente'}" id="btn_${item.id}" onclick="toggleStatus('${item.id}',${org.num},'${prov.replace(/'/g,"\\'")}')">
+                ${isEnt?'✅ Entregado':'⏳ Pendiente'}
+              </button>
+            </div>
           </div>
-          <div class="cant-wrap">
-            <span class="cant-label">Cant. entregada</span>
-            <input class="cant-input" type="number" min="0" placeholder="0"
-              id="cantinput_${item.id}" value="">
+          <div class="nota-toggle">
+            <button class="nota-toggle-btn" id="notatoggle_${item.id}" onclick="toggleNota('${item.id}')">${s.nota?'📝 Ver nota':'📝 Añadir nota'}</button>
           </div>
-          <div class="fecha-wrap">
-            <span class="fecha-label">Fecha real entrega</span>
-            <input class="fecha-input" type="date" value="${s.fecha||''}"
-              id="fechainput_${item.id}"
-              onchange="onFechaChange('${item.id}',this.value)">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:110px">
-            <button class="status-btn" style="background:rgba(0,201,167,.15);border:1px solid rgba(0,201,167,.3);color:var(--accent);font-size:10px;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;white-space:nowrap"
-              onclick="registrarParcial('${item.id}','${item.und}')">
-              ➕ Registrar entrega
-            </button>
-            <button class="status-btn status-${isEnt?'entregado':'pendiente'}"
-              id="btn_${item.id}" onclick="toggleStatus('${item.id}')">
-              ${isEnt?'✅ Entregado':'⏳ Pendiente'}
-            </button>
+          <div class="nota-area" id="nota_${item.id}">
+            <textarea class="nota-textarea" placeholder="Observaciones, razón de demora, contacto…" onchange="onNotaChange('${item.id}',this.value)">${s.nota||''}</textarea>
+            <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+              <input type="text" placeholder="Nombre de quien registra" value="${s.usuario||''}" onchange="onUsuarioChange('${item.id}',this.value)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:rgba(255,255,255,.6);font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 10px;outline:none;flex:1">
+            </div>
+            <div class="nota-meta historial-badge">${tsText}${usuarioText}</div>
           </div>
         </div>`;
       }).join('');
 
       const aId = `aliado_org${org.num}_${pi}`;
-      const est = getEstDates(org.num, prov);
-      const fechasHtml = est ? `
-        <div class="aliado-fechas">
-          <span class="aliado-fecha-est">📅 Inicio estimado: <strong>${est.inicio}</strong></span>
-          <span class="aliado-fecha-est">🏁 Fin estimado: <strong>${est.fin}</strong></span>
-        </div>` : '';
+      const est = getEstDates(org.num, prov, true);
+      const fechasHtml = est ? `<div class="aliado-fechas">
+        <span class="aliado-fecha-est">📅 Inicio: <strong>${est.inicio}</strong></span>
+        <span class="aliado-fecha-est">🏁 Fin: <strong>${est.fin}</strong></span>
+      </div>` : '';
+
+      const provEnc = encodeURIComponent(prov);
 
       return `<div class="aliado-group" id="${aId}">
         <div class="aliado-header" onclick="toggleAliado('${aId}')">
@@ -657,7 +954,10 @@ function render() {
             <div class="aliado-name">${prov}</div>
             ${fechasHtml}
           </div>
-          <span class="aliado-count">${items.length} ítem${items.length>1?'s':''}</span>
+          <div class="aliado-actions" onclick="event.stopPropagation()">
+            <span class="aliado-count">${items.length} ítem${items.length>1?'s':''}</span>
+            <button class="copy-link-btn" onclick="copiarEnlace(${org.num},'${provEnc}')">🔗 Copiar enlace</button>
+          </div>
           <div class="aliado-chevron">
             <svg width="12" height="12" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
           </div>
@@ -667,9 +967,9 @@ function render() {
     }).join('');
 
     const card = document.createElement('div');
-    card.className='org-card';
-    card.style.animationDelay=(idx*0.06)+'s';
-    card.innerHTML=`
+    card.className = 'org-card';
+    card.style.animationDelay = (idx*0.06)+'s';
+    card.innerHTML = `
       <div class="org-header" onclick="this.parentElement.classList.toggle('open')">
         <div class="org-num">${org.num}</div>
         <div class="org-info">
@@ -687,91 +987,264 @@ function render() {
         </div>
       </div>
       <div class="org-body">${provGroups}</div>`;
-
     if(idx===0 && !searchTerm) card.classList.add('open');
     container.appendChild(card);
   });
 
-  noRes.style.display = visible===0?'block':'none';
+  noRes.style.display = visible===0 ? 'block' : 'none';
+
+  // Apply URL filters after render
+  applyUrlFilters();
 }
 
-function renderVisits(){
-  const grid=document.getElementById('visits-grid');
+// ── DASHBOARD ALIADOS ─────────────────────────────────────────────
+function renderDashboardAliados() {
+  const container = document.getElementById('aliados-dashboard');
+  if(!container) return;
+  const aliadoMap = {};
+  for(const orgId in ALL_DATA) {
+    const org = ORGS.find(o=>o.num==orgId);
+    ALL_DATA[orgId].forEach(item=>{
+      const key = item.prov;
+      if(!aliadoMap[key]) aliadoMap[key] = {prov:key, orgs:new Set(), total:0, ent:0};
+      aliadoMap[key].orgs.add(org?org.org:'');
+      aliadoMap[key].total++;
+      if(getItemState(item.id).status==='entregado') aliadoMap[key].ent++;
+    });
+  }
+  const aliados = Object.values(aliadoMap).sort((a,b)=> (a.ent/a.total)-(b.ent/b.total));
+  container.innerHTML = aliados.map(a=>{
+    const pct = Math.round(a.ent/a.total*100);
+    const pctClass = pct<30?'low':pct<70?'mid':'';
+    return `<div class="aliado-card-dash">
+      <div class="aliado-dash-pct ${pctClass}">${pct}%</div>
+      <div class="aliado-dash-name">${a.prov}</div>
+      <div class="aliado-dash-org">${[...a.orgs].map(o=>o.substring(0,35)).join(' · ')}</div>
+      <div class="aliado-dash-bar"><div class="aliado-dash-fill" style="width:${pct}%"></div></div>
+      <div class="aliado-dash-stats"><span>${a.ent} entregados</span><span>${a.total-a.ent} pendientes</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ── GANTT ─────────────────────────────────────────────────────────
+function renderGantt() {
+  const container = document.getElementById('gantt-table');
+  if(!container) return;
+  const GANTT_START = new Date('2026-05-15');
+  const GANTT_END = new Date('2026-09-01');
+  const totalDays = Math.round((GANTT_END - GANTT_START) / 86400000);
+  const today = new Date();
+  const todayPct = Math.min(100, Math.max(0, Math.round((today - GANTT_START)/86400000/totalDays*100)));
+
+  const months = ['May','Jun','Jul','Ago'];
+  const monthsHtml = months.map(m=>`<div class="gantt-month">${m}</div>`).join('');
+
+  const rows = [];
+  const seen = new Set();
+  for(const orgId in ALL_DATA) {
+    const org = ORGS.find(o=>o.num==orgId);
+    const provs = [...new Set(ALL_DATA[orgId].map(i=>i.prov))];
+    provs.forEach(prov=>{
+      const key = `${orgId}_${prov}`;
+      if(seen.has(key)) return;
+      seen.add(key);
+      const est = getEstDates(orgId, prov, false);
+      if(!est) return;
+      const items = ALL_DATA[orgId].filter(i=>i.prov===prov);
+      const ent = items.filter(i=>getItemState(i.id).status==='entregado').length;
+      const pct = items.length>0 ? Math.round(ent/items.length*100) : 0;
+      const start = new Date(est.inicio);
+      const end = new Date(est.fin);
+      const leftPct = Math.max(0, Math.round((start-GANTT_START)/86400000/totalDays*100));
+      const widthPct = Math.max(1, Math.round((end-start)/86400000/totalDays*100));
+      const barClass = pct===100 ? 'gantt-bar-done' : 'gantt-bar-pend';
+      const label = pct===100 ? '✅ Completo' : `${pct}%`;
+      rows.push(`<div class="gantt-row">
+        <div class="gantt-label">${prov.substring(0,28)}${prov.length>28?'…':''}<small>${org?org.org.substring(0,30)+'…':''}</small></div>
+        <div class="gantt-track">
+          <div class="gantt-today" style="left:${todayPct}%"></div>
+          <div class="gantt-bar ${barClass}" style="left:${leftPct}%;width:${widthPct}%">${label}</div>
+        </div>
+      </div>`);
+    });
+  }
+
+  container.innerHTML = `
+    <div class="gantt-header">
+      <div></div>
+      <div class="gantt-months">${monthsHtml}</div>
+    </div>
+    ${rows.join('')}`;
+}
+
+// ── VISITS ────────────────────────────────────────────────────────
+function renderVisits() {
+  const grid = document.getElementById('visits-grid');
+  if(!grid) return;
   ORGS.forEach((org,i)=>{
-    const parts=org.visita.split(' ');
-    const card=document.createElement('div');
-    card.className='visit-card';
-    card.style.animationDelay=(i*0.07+0.1)+'s';
-    card.innerHTML=`<div class="visit-num">Organización ${org.num}</div>
+    const parts = org.visita.split(' ');
+    const card = document.createElement('div');
+    card.className = 'visit-card';
+    card.style.animationDelay = (i*0.07+0.1)+'s';
+    card.innerHTML = `<div class="visit-num">Organización ${org.num}</div>
       <div class="visit-org">${org.org}</div>
       <div class="visit-date">${parts[0]} ${parts[1]}<small>${parts[2]}</small></div>`;
     grid.appendChild(card);
   });
 }
 
-// ── INIT FIREBASE ─────────────────────────────────────────────────
+// ── EXPORTAR EXCEL ────────────────────────────────────────────────
+function exportarExcel() {
+  if(typeof XLSX === 'undefined') { showToast('Cargando librería Excel…'); return; }
+  const rows = [['Organización','Proveedor','Descripción','Categoría','Cantidad','Unidad','Estado','Fecha Entrega Real','Entregas Parciales','Nota','Registrado por','Último cambio']];
+  for(const orgId in ALL_DATA) {
+    const org = ORGS.find(o=>o.num==orgId);
+    ALL_DATA[orgId].forEach(item=>{
+      const s = getItemState(item.id);
+      const hist = (s.historial||[]).map(h=>`${h.fecha}: ${h.cant} ${item.und}`).join(' | ');
+      rows.push([
+        org ? org.org : '',
+        item.prov,
+        item.desc,
+        normalizecat(item.cat),
+        item.cant,
+        item.und,
+        s.status==='entregado' ? 'Entregado' : 'Pendiente',
+        s.fecha||'',
+        hist,
+        s.nota||'',
+        s.usuario||'',
+        s.ts ? new Date(s.ts).toLocaleString('es-CO') : ''
+      ]);
+    });
+  }
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [40,35,60,15,10,10,12,15,40,40,20,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Cronograma Caquetá 2026');
+
+  // Resumen por aliado
+  const resRows = [['Proveedor','Total ítems','Entregados','Pendientes','% Avance']];
+  const provMap = {};
+  for(const orgId in ALL_DATA) {
+    ALL_DATA[orgId].forEach(item=>{
+      if(!provMap[item.prov]) provMap[item.prov]={total:0,ent:0};
+      provMap[item.prov].total++;
+      if(getItemState(item.id).status==='entregado') provMap[item.prov].ent++;
+    });
+  }
+  for(const [prov,d] of Object.entries(provMap)) {
+    resRows.push([prov,d.total,d.ent,d.total-d.ent,Math.round(d.ent/d.total*100)+'%']);
+  }
+  const ws2 = XLSX.utils.aoa_to_sheet(resRows);
+  ws2['!cols'] = [40,12,12,12,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Resumen aliados');
+
+  XLSX.writeFile(wb, `Cronograma_Caqueta_2026_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('✅ Excel descargado');
+}
+
+// ── COMPARTIR ENLACE ──────────────────────────────────────────────
+function copiarEnlace(orgNum, provEnc) {
+  const url = new URL(window.location.href.split('?')[0]);
+  url.searchParams.set('org', orgNum);
+  url.searchParams.set('prov', provEnc);
+  navigator.clipboard.writeText(url.toString()).then(()=>{
+    showToast('🔗 Enlace copiado al portapapeles');
+  }).catch(()=>{
+    prompt('Copia este enlace:', url.toString());
+  });
+}
+
+function applyUrlFilters() {
+  const params = new URLSearchParams(window.location.search);
+  const org = params.get('org');
+  const prov = params.get('prov');
+  if(!org) return;
+  // Expand matching org card
+  const cards = document.querySelectorAll('.org-card');
+  cards.forEach(card=>{
+    const num = card.querySelector('.org-num');
+    if(num && num.textContent.trim()==org) {
+      card.classList.add('open');
+      // Open matching aliado
+      if(prov) {
+        const provDec = decodeURIComponent(prov);
+        card.querySelectorAll('.aliado-group').forEach(ag=>{
+          const name = ag.querySelector('.aliado-name');
+          if(name && name.textContent.trim()===provDec) ag.classList.add('open');
+        });
+      }
+      setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}), 300);
+    }
+  });
+}
+
+// ── SYNC STATUS ───────────────────────────────────────────────────
 function showSyncStatus(msg, color) {
-  let el = document.getElementById('sync-status');
+  const el = document.getElementById('sync-status');
   if(!el) return;
   el.textContent = msg;
   el.style.color = color;
 }
 
+// ── INIT FIREBASE ─────────────────────────────────────────────────
 window.addEventListener('load', function() {
   firebase.initializeApp(firebaseConfig);
   db = firebase.database();
   dbRef = db.ref('estado');
   showSyncStatus('⟳ Conectando…', '#F5A623');
-
   let firstLoad = true;
 
-  dbRef.on('value', (snapshot) => {
+  dbRef.on('value', (snapshot)=>{
     const newState = snapshot.val() || {};
-    if (firstLoad) {
-      // First load: full render to build the DOM
+    if(firstLoad) {
       state = newState;
       render();
       renderVisits();
       updateGlobalProgress();
+      updateUrgentes();
       firstLoad = false;
     } else {
-      // Subsequent updates: only patch changed items without rebuilding DOM
-      for (const id in newState) {
-        const prev = state[id] || {status:'pendiente', fecha:''};
-        const next = newState[id] || {status:'pendiente', fecha:''};
-        // Update status button if changed
-        if (prev.status !== next.status) {
-          const btn = document.getElementById('btn_' + id);
-          if (btn) {
-            const isEnt = next.status === 'entregado';
+      for(const id in newState) {
+        const prev = state[id] || {};
+        const next = newState[id] || {};
+        if(prev.status !== next.status) {
+          const btn = document.getElementById('btn_'+id);
+          if(btn) {
+            const isEnt = next.status==='entregado';
             btn.textContent = isEnt ? '✅ Entregado' : '⏳ Pendiente';
-            btn.className = 'status-btn status-' + (isEnt ? 'entregado' : 'pendiente');
+            btn.className = 'status-btn status-'+(isEnt?'entregado':'pendiente');
           }
         }
-        // Update date input if changed
-        if (prev.fecha !== next.fecha) {
-          const row = document.getElementById('row_' + id);
-          if (row) {
+        if(prev.fecha !== next.fecha) {
+          const row = document.getElementById('row_'+id);
+          if(row) {
             const input = row.querySelector('.fecha-input');
-            if (input && input !== document.activeElement) {
-              input.value = next.fecha || '';
-            }
+            if(input && input!==document.activeElement) input.value = next.fecha||'';
           }
+        }
+        if(prev.nota !== next.nota) {
+          const ta = document.querySelector(`#nota_${id} .nota-textarea`);
+          if(ta && ta!==document.activeElement) ta.value = next.nota||'';
+          const badge = document.getElementById('notabadge_'+id);
+          if(badge) badge.style.display = next.nota ? 'inline' : 'none';
         }
       }
       state = newState;
       updateGlobalProgress();
-      // Update all org progress bars
-      for (let i = 1; i <= 5; i++) updateOrgProgress(i);
+      updateUrgentes();
+      for(let i=1;i<=5;i++) updateOrgProgress(i);
     }
     showSyncStatus('🟢 Sincronizado', '#00C9A7');
-  }, (error) => {
+  }, ()=>{
     showSyncStatus('🔴 Sin conexión', '#E74C3C');
     render();
     renderVisits();
     updateGlobalProgress();
+    updateUrgentes();
   });
-}); // end window.load
+});
 </script>
 </body>
 </html>
