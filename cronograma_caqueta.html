@@ -298,8 +298,25 @@ footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:cent
     <button class="modal-cancel" onclick="cerrarModal()">Cancelar</button>
   </div>
 </div>
+
+<!-- MODAL ADMIN (Excel / Resumen) -->
+<div class="modal-overlay" id="modal-admin" style="display:none" onclick="cerrarModalAdmin(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-icon">🛡️</div>
+    <div class="modal-org">Acceso Administrador</div>
+    <div class="modal-title" id="admin-modal-title">Exportar datos</div>
+    <div class="modal-sub">Esta función es exclusiva del administrador. Ingresa la clave para continuar.</div>
+    <input class="modal-input" id="admin-input" type="password" placeholder="Clave de administrador…"
+      onkeydown="if(event.key==='Enter') verificarAdmin()"
+      oninput="document.getElementById('admin-error').textContent=''">
+    <div class="modal-error" id="admin-error"></div>
+    <button class="modal-btn" onclick="verificarAdmin()">Ingresar →</button>
+    <button class="modal-cancel" onclick="cerrarModalAdmin()">Cancelar</button>
+  </div>
+</div>
+
 <div class="download-bar">
-  <button class="download-btn" onclick="descargarResumen()">
+  <button class="download-btn" onclick="pedirClaveAdmin('resumen')">
     📄 Descargar resumen
   </button>
 </div>
@@ -364,7 +381,7 @@ footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:cent
     <div class="action-btns">
       <button class="action-btn" onclick="expandirTodo(true)">⬇ Expandir todo</button>
       <button class="action-btn" onclick="expandirTodo(false)">⬆ Colapsar todo</button>
-      <button class="action-btn excel" onclick="exportarExcel()">📊 Excel</button>
+      <button class="action-btn excel" onclick="pedirClaveAdmin('excel')">📊 Excel</button>
     </div>
   </div>
   <div class="orgs" id="orgs-container"></div>
@@ -469,6 +486,45 @@ let db = null;
 let dbRef = null;
 let activeFilter = 'todos';
 let searchTerm = '';
+
+// ── ADMIN ─────────────────────────────────────────────────────────
+const CLAVE_ADMIN = 'CAQUETA2026*';
+let adminAccionPendiente = null; // 'excel' | 'resumen'
+
+function pedirClaveAdmin(accion) {
+  adminAccionPendiente = accion;
+  const titulos = { excel: '📊 Exportar a Excel', resumen: '📄 Descargar resumen HTML' };
+  document.getElementById('admin-modal-title').textContent = titulos[accion] || 'Exportar datos';
+  document.getElementById('admin-input').value = '';
+  document.getElementById('admin-error').textContent = '';
+  document.getElementById('modal-admin').style.display = 'flex';
+  setTimeout(()=>document.getElementById('admin-input').focus(), 100);
+}
+
+function verificarAdmin() {
+  const input = document.getElementById('admin-input').value.trim();
+  if(input === CLAVE_ADMIN) {
+    document.getElementById('modal-admin').style.display = 'none';
+    document.getElementById('admin-input').value = '';
+    if(adminAccionPendiente === 'excel') exportarExcel();
+    else if(adminAccionPendiente === 'resumen') descargarResumen();
+    adminAccionPendiente = null;
+    showToast('🛡️ Acceso de administrador concedido');
+  } else {
+    const errEl = document.getElementById('admin-error');
+    errEl.textContent = '❌ Clave incorrecta.';
+    const inp = document.getElementById('admin-input');
+    inp.value = '';
+    inp.style.borderColor = 'rgba(231,76,60,.6)';
+    setTimeout(()=>inp.style.borderColor = '', 1000);
+  }
+}
+
+function cerrarModalAdmin(event) {
+  if(event && event.target !== document.getElementById('modal-admin')) return;
+  document.getElementById('modal-admin').style.display = 'none';
+  adminAccionPendiente = null;
+}
 
 // ── CONTROL DE ACCESO POR ORGANIZACIÓN ───────────────────────────
 let orgPendiente = null;
