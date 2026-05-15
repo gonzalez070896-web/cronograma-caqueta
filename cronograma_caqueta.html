@@ -240,16 +240,18 @@ footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:cent
 
 /* MOBILE */
 @media(max-width:700px){
-  .item-row-top{grid-template-columns:1fr}
-  .fecha-wrap{align-items:flex-start}
+  .item-row-top{grid-template-columns:1fr!important;gap:8px}
+  .cant-wrap{align-items:flex-start;width:100%}
+  .cant-input{width:100%;font-size:16px;padding:10px 12px;min-height:44px;text-align:left}
+  .fecha-wrap{align-items:flex-start;min-width:0;width:100%}
   .fecha-input{width:100%;font-size:16px;padding:10px 12px;min-height:44px}
   .status-btn{width:100%;padding:12px;font-size:14px;min-height:44px}
   .controls{gap:8px}
   .search-box input{width:100%}
-  .action-btns{width:100%}
-  .action-btn{flex:1;justify-content:center}
+  .action-btns{width:100%;flex-wrap:wrap}
+  .action-btn{flex:1;justify-content:center;min-width:80px}
   .tabs-nav{gap:2px}
-  .tab-btn{min-width:80px;font-size:11px;padding:7px 10px}
+  .tab-btn{min-width:70px;font-size:11px;padding:6px 8px}
   .aliado-actions{flex-wrap:wrap}
   .copy-link-btn{width:100%}
 }
@@ -322,6 +324,8 @@ footer{border-top:1px solid rgba(255,255,255,.07);padding:24px 0;text-align:cent
       <input type="text" id="search" placeholder="Buscar ítem, aliado…" oninput="onSearch(this.value)">
     </div>
     <div class="action-btns">
+      <button class="action-btn" onclick="expandirTodo(true)">⬇ Expandir todo</button>
+      <button class="action-btn" onclick="expandirTodo(false)">⬆ Colapsar todo</button>
       <button class="action-btn excel" onclick="exportarExcel()">📊 Excel</button>
     </div>
   </div>
@@ -505,22 +509,45 @@ function registrarParcial(id, und) {
   const fechaInput = document.getElementById('fechainput_'+id);
   const cantInput  = document.getElementById('cantinput_'+id);
   const fecha = fechaInput ? fechaInput.value : '';
-  const cant  = cantInput  ? cantInput.value  : '';
-  if(!fecha || !cant || parseFloat(cant)<=0) {
+  const cant  = cantInput  ? parseFloat(cantInput.value) : 0;
+  if(!fecha || !cant || cant <= 0) {
     showToast('⚠️ Ingresa fecha y cantidad antes de registrar');
     return;
   }
+  const item = findItem(id);
+  const cantTotal = item ? parseFloat(item.cant) : Infinity;
   if(!state[id]) state[id] = {status:'pendiente', fecha:'', historial:[], nota:'', usuario:'', ts:''};
   if(!state[id].historial) state[id].historial = [];
-  state[id].historial.push({fecha, cant});
+  // Calcular ya entregado
+  const yaEntregado = state[id].historial.reduce((s,h)=>s+parseFloat(h.cant||0), 0);
+  const pendiente = cantTotal - yaEntregado;
+  if(cant > pendiente) {
+    showToast(`⚠️ Máximo pendiente: ${pendiente} ${und}`);
+    return;
+  }
+  state[id].historial.push({fecha, cant: cant.toString()});
   state[id].fecha = fecha;
+  // Auto-marcar entregado si se completa
+  const totalRegistrado = yaEntregado + cant;
+  if(totalRegistrado >= cantTotal && state[id].status !== 'entregado') {
+    state[id].status = 'entregado';
+    state[id].ts = new Date().toISOString();
+    if(dbRef) dbRef.child(id).set(state[id]);
+    reRenderRow(id, item);
+    updateGlobalProgress();
+    updateOrgProgress(id.split('_')[0].replace('org',''));
+    updateUrgentes();
+    showToast('🎉 Entrega completa — ítem marcado como entregado');
+    if(cantInput) cantInput.value = '';
+    return;
+  }
   if(dbRef) dbRef.child(id).set(state[id]);
   if(cantInput) cantInput.value = '';
-  // Re-render this row in place
-  const item = findItem(id);
   reRenderRow(id, item);
   updateGlobalProgress();
-  showToast('✅ Entrega parcial registrada');
+  updateOrgProgress(id.split('_')[0].replace('org',''));
+  const restante = cantTotal - totalRegistrado;
+  showToast(`✅ Parcial registrado · Quedan ${restante} ${und}`);
 }
 
 function eliminarHistorial(id, idx) {
@@ -635,6 +662,19 @@ function descargarResumen() {
     .prog-fill{height:100%;background:#00C9A7;border-radius:100px}
     .section-org{background:#EFF6FF;border:1px solid #D6E8F7;border-radius:10px;padding:14px;margin-bottom:16px}
     footer{margin-top:30px;font-size:11px;color:#94A3B8;border-top:1px solid #E8F0FB;padding-top:14px;text-align:center}
+    @media print{
+      body{padding:15px;font-size:11px}
+      h1{font-size:18px}
+      h2{font-size:14px}
+      .kpi{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .section-org{page-break-inside:avoid;background:#fff!important;border:1px solid #ccc}
+      table{page-break-inside:auto}
+      tr{page-break-inside:avoid;page-break-after:auto}
+      th{background:#1A3C6E!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .tag-ent,.tag-pen{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .prog-bar,.prog-fill{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      footer{margin-top:20px}
+    }
   </style></head><body>
   <h1>📋 Resumen General de Entregas — Caquetá 2026</h1>
   <div class="meta">Generado el ${fechaHoy} · Fuente: Cronograma Caquetá v2</div>`;
@@ -698,6 +738,11 @@ function descargarResumen() {
   a.click();
   URL.revokeObjectURL(url);
   showToast('📄 Resumen descargado');
+}
+
+function expandirTodo(abrir) {
+  document.querySelectorAll('.org-card').forEach(c=> abrir ? c.classList.add('open') : c.classList.remove('open'));
+  document.querySelectorAll('.aliado-group').forEach(a=> abrir ? a.classList.add('open') : a.classList.remove('open'));
 }
 
 // ── TABS ──────────────────────────────────────────────────────────
@@ -771,37 +816,55 @@ function toggleNota(id) {
 }
 
 // ── PROGRESS ─────────────────────────────────────────────────────
+// ── PROGRESO PONDERADO ────────────────────────────────────────────
+function calcItemProgress(item) {
+  const s = getItemState(item.id);
+  if(s.status==='entregado') return {entregado:1, total:1, pct:100};
+  const cantTotal = parseFloat(item.cant) || 1;
+  const entregado = (s.historial||[]).reduce((sum,h)=>sum+parseFloat(h.cant||0),0);
+  return {entregado: Math.min(entregado, cantTotal), total: cantTotal, pct: Math.min(100, Math.round(entregado/cantTotal*100))};
+}
+
 function updateGlobalProgress() {
-  let total=0, ent=0, urgentes=0;
+  let totalItems=0, entItems=0, urgentes=0;
+  let totalUnid=0, entUnid=0;
   for(const orgId in ALL_DATA) {
-    const org = ORGS.find(o=>o.num==orgId);
     ALL_DATA[orgId].forEach(item=>{
-      total++;
+      totalItems++;
       const s = getItemState(item.id);
-      if(s.status==='entregado') ent++;
+      const prog = calcItemProgress(item);
+      totalUnid += prog.total;
+      entUnid   += prog.entregado;
+      if(s.status==='entregado') entItems++;
       else if(isItemUrgente(orgId, item.prov, s.status)) urgentes++;
     });
   }
-  const pct = total>0 ? Math.round(ent/total*100) : 0;
+  const pct = totalUnid>0 ? Math.round(entUnid/totalUnid*100) : 0;
   document.getElementById('gp-pct').textContent = pct+'%';
   document.getElementById('gp-bar').style.width = pct+'%';
-  document.getElementById('gs-ent').textContent = ent;
-  document.getElementById('gs-pen').textContent = total-ent;
-  document.getElementById('gs-tot').textContent = total;
-  document.getElementById('kpi-entregados').textContent = ent;
-  document.getElementById('kpi-pendientes').textContent = total-ent;
-  document.getElementById('kpi-items').textContent = total;
+  document.getElementById('gs-ent').textContent = entItems;
+  document.getElementById('gs-pen').textContent = totalItems-entItems;
+  document.getElementById('gs-tot').textContent = totalItems;
+  document.getElementById('kpi-entregados').textContent = entItems;
+  document.getElementById('kpi-pendientes').textContent = totalItems-entItems;
+  document.getElementById('kpi-items').textContent = totalItems;
   document.getElementById('kpi-urgentes').textContent = urgentes;
 }
 
 function updateOrgProgress(orgNum) {
   const items = ALL_DATA[orgNum] || [];
-  const ent = items.filter(i=>getItemState(i.id).status==='entregado').length;
-  const pct = items.length>0 ? Math.round(ent/items.length*100) : 0;
+  let totalUnid=0, entUnid=0, entItems=0;
+  items.forEach(item=>{
+    const prog = calcItemProgress(item);
+    totalUnid += prog.total;
+    entUnid   += prog.entregado;
+    if(getItemState(item.id).status==='entregado') entItems++;
+  });
+  const pct = totalUnid>0 ? Math.round(entUnid/totalUnid*100) : 0;
   const miniBar = document.getElementById('mini_'+orgNum);
   const miniText = document.getElementById('minitxt_'+orgNum);
   if(miniBar) miniBar.style.width = pct+'%';
-  if(miniText) miniText.textContent = `${ent}/${items.length} · ${pct}%`;
+  if(miniText) miniText.textContent = `${entItems}/${items.length} ítems · ${pct}%`;
 }
 
 function updateUrgentes() {
@@ -853,7 +916,7 @@ function render() {
       if(activeFilter==='pendiente' && s.status!=='pendiente') return false;
       if(activeFilter==='entregado' && s.status!=='entregado') return false;
       if(activeFilter==='urgente' && !urgente) return false;
-      if(searchTerm && !item.desc.toLowerCase().includes(searchTerm) && !item.prov.toLowerCase().includes(searchTerm) && !org.org.toLowerCase().includes(searchTerm)) return false;
+      if(searchTerm && !item.desc.toLowerCase().includes(searchTerm) && !item.prov.toLowerCase().includes(searchTerm) && !org.org.toLowerCase().includes(searchTerm) && !normalizecat(item.cat).toLowerCase().includes(searchTerm)) return false;
       return true;
     });
     if(filtered.length===0) return;
@@ -1001,27 +1064,47 @@ function render() {
 function renderDashboardAliados() {
   const container = document.getElementById('aliados-dashboard');
   if(!container) return;
+  const today = new Date(); today.setHours(0,0,0,0);
   const aliadoMap = {};
   for(const orgId in ALL_DATA) {
     const org = ORGS.find(o=>o.num==orgId);
     ALL_DATA[orgId].forEach(item=>{
       const key = item.prov;
-      if(!aliadoMap[key]) aliadoMap[key] = {prov:key, orgs:new Set(), total:0, ent:0};
+      if(!aliadoMap[key]) aliadoMap[key] = {prov:key, orgs:new Set(), totalItems:0, entItems:0, totalUnid:0, entUnid:0, fin:null, orgNum:orgId};
       aliadoMap[key].orgs.add(org?org.org:'');
-      aliadoMap[key].total++;
-      if(getItemState(item.id).status==='entregado') aliadoMap[key].ent++;
+      aliadoMap[key].totalItems++;
+      const prog = calcItemProgress(item);
+      aliadoMap[key].totalUnid += prog.total;
+      aliadoMap[key].entUnid   += prog.entregado;
+      if(getItemState(item.id).status==='entregado') aliadoMap[key].entItems++;
+      // Tomar la fecha fin más tardía del aliado
+      const est = getEstDates(orgId, item.prov, false);
+      if(est) {
+        const f = new Date(est.fin);
+        if(!aliadoMap[key].fin || f > aliadoMap[key].fin) aliadoMap[key].fin = f;
+      }
     });
   }
-  const aliados = Object.values(aliadoMap).sort((a,b)=> (a.ent/a.total)-(b.ent/b.total));
+  const aliados = Object.values(aliadoMap).sort((a,b)=>(a.entUnid/a.totalUnid)-(b.entUnid/b.totalUnid));
   container.innerHTML = aliados.map(a=>{
-    const pct = Math.round(a.ent/a.total*100);
+    const pct = Math.round(a.entUnid/a.totalUnid*100);
     const pctClass = pct<30?'low':pct<70?'mid':'';
+    let retrasoHtml = '';
+    if(a.fin && a.entItems < a.totalItems) {
+      const dias = Math.round((today - a.fin)/86400000);
+      if(dias > 0) retrasoHtml = `<div style="font-size:11px;color:#FF6B6B;margin-top:4px;font-weight:600">⚠️ +${dias} día${dias>1?'s':''} de retraso</div>`;
+      else if(dias === 0) retrasoHtml = `<div style="font-size:11px;color:#FBBF24;margin-top:4px;font-weight:600">⏰ Vence hoy</div>`;
+      else retrasoHtml = `<div style="font-size:11px;color:#4ADE80;margin-top:4px">✅ En plazo (${Math.abs(dias)} días restantes)</div>`;
+    } else if(a.entItems === a.totalItems) {
+      retrasoHtml = `<div style="font-size:11px;color:#4ADE80;margin-top:4px">🎉 Completado</div>`;
+    }
     return `<div class="aliado-card-dash">
       <div class="aliado-dash-pct ${pctClass}">${pct}%</div>
       <div class="aliado-dash-name">${a.prov}</div>
       <div class="aliado-dash-org">${[...a.orgs].map(o=>o.substring(0,35)).join(' · ')}</div>
       <div class="aliado-dash-bar"><div class="aliado-dash-fill" style="width:${pct}%"></div></div>
-      <div class="aliado-dash-stats"><span>${a.ent} entregados</span><span>${a.total-a.ent} pendientes</span></div>
+      <div class="aliado-dash-stats"><span>${a.entItems} ítems entregados</span><span>${a.totalItems-a.entItems} pendientes</span></div>
+      ${retrasoHtml}
     </div>`;
   }).join('');
 }
@@ -1209,6 +1292,14 @@ window.addEventListener('load', function() {
       for(const id in newState) {
         const prev = state[id] || {};
         const next = newState[id] || {};
+        const prevHist = JSON.stringify(prev.historial||[]);
+        const nextHist = JSON.stringify(next.historial||[]);
+        // Si cambió el historial de parciales → re-render completo de la fila
+        if(prevHist !== nextHist) {
+          const item = findItem(id);
+          if(item) { state[id] = next; reRenderRow(id, item); }
+          continue;
+        }
         if(prev.status !== next.status) {
           const btn = document.getElementById('btn_'+id);
           if(btn) {
